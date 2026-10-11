@@ -1,34 +1,27 @@
 # claude-plugins
 
-Erik Båvenstrand's Claude Code plugin marketplace (`bavenstrand`).
+Erik Båvenstrand's Claude Code setup: the `bavenstrand` plugin marketplace, plus rules and global instructions symlinked into `~/.claude`.
 
-## Install
+## Plugins
 
-```
-/plugin marketplace add ErikBavenstrand/claude-plugins
-```
+### baven-core
 
-Then install a plugin with `/plugin install <plugin>@bavenstrand`.
+- Skill `writing-for-agents`: rules for writing text an agent reads
+- Hook: format shell scripts with shfmt and lint them with shellcheck after each write
+- Hook: format Python files with ruff after each write
 
-## Develop locally
+### Install
 
-Add this checkout as a marketplace so plugins load in place from disk:
-
-```
-/plugin marketplace add ~/Code/claude-plugins
-```
-
-After editing a plugin, run `/reload-plugins` or start a new session. Validate with:
-
-```
-claude plugin validate .
+```sh
+claude plugin marketplace add ErikBavenstrand/claude-plugins
+claude plugin install baven-core@bavenstrand
 ```
 
-## Layout
+## Rules and global instructions
 
-```
-.claude-plugin/marketplace.json   marketplace catalog
-plugins/<name>/                   one directory per plugin
-```
+Plugins cannot ship rules, so these are symlinked:
 
-Plugins don't set `version`, so each commit is picked up on update.
+```sh
+ln -s ~/Code/claude-plugins/rules ~/.claude/rules
+ln -s ~/Code/claude-plugins/global-CLAUDE.md ~/.claude/CLAUDE.md
+```

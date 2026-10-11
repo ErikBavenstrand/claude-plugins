@@ -1,0 +1,54 @@
+{
+  "description": "Format and lint shell and Python files after Claude writes them.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/shell-format-lint.sh",
+            "if": "Write(**/*.sh)",
+            "timeout": 30,
+            "statusMessage": "Formatting and linting shell script"
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/shell-format-lint.sh",
+            "if": "Edit(**/*.sh)",
+            "timeout": 30,
+            "statusMessage": "Formatting and linting shell script"
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/shell-format-lint.sh",
+            "if": "Write(**/bin/*)",
+            "timeout": 30,
+            "statusMessage": "Formatting and linting shell script"
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/shell-format-lint.sh",
+            "if": "Edit(**/bin/*)",
+            "timeout": 30,
+            "statusMessage": "Formatting and linting shell script"
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/python-format.sh",
+            "if": "Write(**/*.py)",
+            "timeout": 30,
+            "statusMessage": "Formatting Python file"
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/python-format.sh",
+            "if": "Edit(**/*.py)",
+            "timeout": 30,
+            "statusMessage": "Formatting Python file"
+          }
+        ]
+      }
+    ]
+  }
+}
