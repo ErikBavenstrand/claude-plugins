@@ -1,6 +1,6 @@
 # claude-plugins
 
-Erik Båvenstrand's Claude Code setup: the `bavenstrand` plugin marketplace, plus rules and global instructions symlinked into `~/.claude`.
+A Claude Code setup: a plugin marketplace, plus rules and global instructions symlinked into `~/.claude`.
 
 ## Plugins
 
@@ -12,16 +12,21 @@ Erik Båvenstrand's Claude Code setup: the `bavenstrand` plugin marketplace, plu
 
 ### Install
 
+Replace `<owner>/<repo>` with this repo's GitHub path and `<marketplace>` with the `name` in `.claude-plugin/marketplace.json`:
+
 ```sh
-claude plugin marketplace add ErikBavenstrand/claude-plugins
-claude plugin install baven-core@bavenstrand
+claude plugin marketplace add <owner>/<repo>
+claude plugin install baven-core@<marketplace>
 ```
 
 ## Rules and global instructions
 
-Plugins cannot ship rules, so these are symlinked:
+Plugins cannot ship rules, so these are symlinked. Replace `<repo-path>` with the absolute path of your clone of this repo:
 
 ```sh
-ln -s ~/Code/claude-plugins/rules ~/.claude/rules
-ln -s ~/Code/claude-plugins/global-CLAUDE.md ~/.claude/CLAUDE.md
+link() { [ -e "$2" ] && [ ! -L "$2" ] && mv "$2" "$2.bak"; ln -sfn "$1" "$2"; }
+link <repo-path>/rules ~/.claude/rules
+link <repo-path>/global-CLAUDE.md ~/.claude/CLAUDE.md
 ```
+
+Safe to rerun. An existing real file or directory is moved to `<name>.bak`; an existing symlink is replaced.
