@@ -1,0 +1,10 @@
+{
+  "name": "bavenstrand",
+  "owner": {
+    "name": "Erik Båvenstrand"
+  },
+  "metadata": {
+    "description": "Erik Båvenstrand's Claude Code plugins."
+  },
+  "plugins": []
+}
