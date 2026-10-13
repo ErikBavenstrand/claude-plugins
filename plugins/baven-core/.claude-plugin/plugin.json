@@ -1,6 +1,6 @@
 {
   "name": "baven-core",
-  "description": "Core skills and hooks other bavenstrand plugins build on.",
+  "description": "Core skills other bavenstrand plugins build on.",
   "author": {
     "name": "Erik Båvenstrand"
   }

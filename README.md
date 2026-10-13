@@ -4,10 +4,9 @@ A Claude Code setup: a plugin marketplace, plus rules and global instructions sy
 
 Setup order:
 
-1. Install the dependencies of each plugin you want ([Plugins](#plugins)).
-2. Install the plugins ([Install plugins](#install-plugins)).
-3. Install the CLI tools and set up `PATH` ([CLI tools](#cli-tools)).
-4. Symlink the rules and global instructions ([Rules and global instructions](#rules-and-global-instructions)).
+1. Install the plugins ([Install plugins](#install-plugins)).
+2. Install the CLI tools and set up `PATH` ([CLI tools](#cli-tools)).
+3. Symlink the rules and global instructions ([Rules and global instructions](#rules-and-global-instructions)).
 
 Package names below are Homebrew formulae. On Linux, use the distro's package manager; names may differ.
 
@@ -16,25 +15,6 @@ Package names below are Homebrew formulae. On Linux, use the distro's package ma
 ### baven-core
 
 - Skill `writing-for-agents`: rules for writing text an agent reads.
-- Hook: after each Write or Edit, format shell scripts with shfmt and lint them with shellcheck.
-- Hook: after each Write or Edit, format Python files with ruff.
-
-Dependencies:
-
-| Tool | Used by | Package | If missing |
-| --- | --- | --- | --- |
-| `jq` | both hooks, to read the hook input | `jq` (built into macOS 15+ at `/usr/bin/jq`) | both hooks do nothing |
-| `shfmt` | shell hook | `shfmt` | formatting is skipped |
-| `shellcheck` | shell hook | `shellcheck` | linting is skipped |
-| `ruff` or `uv` | Python hook | `ruff` or `uv` | formatting is skipped |
-
-The Python hook prefers the project's `.venv/bin/ruff`, then `ruff` on `PATH`, then `uvx ruff`. Installing `uv` alone is enough.
-
-Hooks fail silently when a tool is missing. Check with:
-
-```sh
-command -v jq shfmt shellcheck uv
-```
 
 ## Install plugins
 
@@ -47,7 +27,7 @@ claude plugin install baven-core@<marketplace>
 
 ## CLI tools
 
-`global-CLAUDE.md` tells Claude these tools exist. Install them so its commands work.
+`global-CLAUDE.md` and the rules tell Claude to use these tools. Install them so its commands work.
 
 ### GNU replacements for macOS tools
 
@@ -87,7 +67,9 @@ The output names GNU sed.
 
 | Tool | Purpose | Package |
 | --- | --- | --- |
-| `uv` | Python environments and tools | `uv` |
+| `uv` | Python environments and tools; runs ruff for `rules/python.md` | `uv` |
+| `shfmt` | format shell scripts (`rules/shell.md`) | `shfmt` |
+| `shellcheck` | lint shell scripts (`rules/shell.md`) | `shellcheck` |
 | `ast-grep` | structural search and rewrite | `ast-grep` |
 | `sd` | literal find-and-replace | `sd` |
 | `fd` | find files | `fd` |
