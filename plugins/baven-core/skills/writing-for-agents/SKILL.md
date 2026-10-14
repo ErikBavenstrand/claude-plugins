@@ -1,6 +1,6 @@
 ---
 name: writing-for-agents
-description: Invoke this skill first, before reading files, whenever the task is to create, edit or review CLAUDE.md, AGENTS.md, a skill, a subagent, a slash command, a system prompt, an LLM prompt, a tool description or instructions for another agent. It holds the rules for writing text an AI agent reads.
+description: Use first, before reading files, when creating, editing or reviewing text an AI agent reads, such as CLAUDE.md, AGENTS.md, skills, subagents, slash commands, prompts and tool descriptions. Holds the rules for writing it.
 ---
 
 # Writing for agents

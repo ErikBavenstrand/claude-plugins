@@ -15,6 +15,7 @@ Package names below are Homebrew formulae. On Linux, use the distro's package ma
 ### baven-core
 
 - Skill `writing-for-agents`: rules for writing text an agent reads.
+- Skill `fleshing-out`: interview the user in rounds until every decision in a plan is settled.
 
 ## Install plugins
 
