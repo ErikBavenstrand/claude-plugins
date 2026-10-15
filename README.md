@@ -16,6 +16,8 @@ Package names below are Homebrew formulae. On Linux, use the distro's package ma
 
 - Skill `writing-for-agents`: rules for writing text an agent reads.
 - Skill `fleshing-out`: interview the user in rounds until every decision in a plan is settled.
+- Skill `researching`: research a question across the web, MCP tools and local files, scaling effort to the question; writes cited, confidence-rated findings to the scratchpad.
+- Agent `researcher`: follows one lead for `researching`; the skill picks its model per lead.
 
 ## Install plugins
 

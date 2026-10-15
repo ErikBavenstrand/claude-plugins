@@ -15,10 +15,11 @@ Interview the user relentlessly until you reach a shared understanding of the su
 - Finding facts is your job, never the user's: don't ask the user for anything you could look up yourself.
 - The decisions are the user's. Put each one to them.
 - Send a subagent on a long lookup, and ask the rest of the frontier meanwhile. Only the questions that depend on its result wait.
+- For a fact that needs research, use the `baven-core:researching` skill.
 
 ## Session file
 
-Keep a record of the interview in a markdown file in the session's scratchpad: the design tree with decision numbers, each answer in the user's words, and the facts you found. Update it after each round. When earlier answers are no longer in your context, read them from the file.
+Keep a record of the interview in a markdown file in the session's scratchpad: the design tree with decision numbers, each answer in the user's words, and the facts you found. Update it after each round. For a researched fact, write it in one line with the path of its findings file. The findings file already holds the sources and confidence. When earlier answers are no longer in your context, read them from the file.
 
 ## Rounds
 
