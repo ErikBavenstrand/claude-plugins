@@ -21,8 +21,12 @@ The addon source is in `${CLAUDE_PLUGIN_ROOT}/addon/Agentcraft`. Edit the copy t
 | `Modules/Snapshot.lua` | Writes the character state to SavedVariables. Skips saves while the client reports an empty character. Exposes `M.AddSection`, `M.SetCached`, `M.On` and `M.util` |
 | `Modules/SnapshotMore.lua` | Sections readable at any time. Add one with `M.AddSection(name, fn)` |
 | `Modules/SnapshotCached.lua` | Data only readable with a window open or after a server reply. Store it with `M.SetCached(name, table)`, triggered from `M.On(event, fn)` |
-| `Modules/Macros.lua` | Macro catalog and its select-and-install page. Add a macro to `M.catalog`; bodies can use `{PETFOOD}`, `{FISHINGPOLE}`, `{MAINHAND}`, `{OFFHAND?}` placeholders. Names start with `AC ` and fit in 16 characters; bodies fit in 255 |
+| `Macros/Library.lua` | Macro library core: categories, `L.Add`, placeholders (`{PETFOOD}`, `{FOOD}`, `{DRINK}`, `{FISHINGPOLE}`, `{MAINHAND}`, `{OFFHAND?}`), install state, install, remove and pick up. Its header lists every macro field and the macro conventions |
+| `Macros/Data/*.lua` | Macro definitions, one file per class plus `General.lua`. Add a macro with `L.Add({...})`; add a class file to the TOC above `Macros\Page.lua` |
+| `Macros/Page.lua` | Library page: category tabs, search, macro cards, detail panel |
 | `Modules/_Template.lua` | Copy this to start a module. It shows every registration call. |
+
+When adding a macro, follow the conventions in the `Macros/Library.lua` header. Cite where the macro comes from in the data file's header, and set `untested = true` until the user confirms it works in game.
 
 A page's `actions` become footer buttons. `Build` runs once; `Refresh` runs on open, after each action and when bars, binds, bags or spells change.
 
