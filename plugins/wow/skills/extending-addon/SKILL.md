@@ -21,6 +21,7 @@ The addon source is in `${CLAUDE_PLUGIN_ROOT}/addon/Agentcraft`. Edit the copy t
 | `Modules/Snapshot.lua` | Writes the character state to SavedVariables. Skips saves while the client reports an empty character. Exposes `M.AddSection`, `M.SetCached`, `M.On` and `M.util` |
 | `Modules/SnapshotMore.lua` | Sections readable at any time. Add one with `M.AddSection(name, fn)` |
 | `Modules/SnapshotCached.lua` | Data only readable with a window open or after a server reply. Store it with `M.SetCached(name, table)`, triggered from `M.On(event, fn)` |
+| `Modules/Macros.lua` | Macro catalog and its select-and-install page. Add a macro to `M.catalog`; bodies can use `{PETFOOD}`, `{FISHINGPOLE}`, `{MAINHAND}`, `{OFFHAND?}` placeholders. Names start with `AC ` and fit in 16 characters; bodies fit in 255 |
 | `Modules/_Template.lua` | Copy this to start a module. It shows every registration call. |
 
 A page's `actions` become footer buttons. `Build` runs once; `Refresh` runs on open, after each action and when bars, binds, bags or spells change.
