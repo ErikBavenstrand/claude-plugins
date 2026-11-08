@@ -1,11 +1,11 @@
 ---
 name: installing-addon
-description: Use when the user wants to install or update the TinkerKit World of Warcraft addon bundled with this plugin, or when wow game data shows no TinkerKit snapshot.
+description: Use when the user wants to install or update the Agentcraft World of Warcraft addon bundled with this plugin, or when wow game data shows no Agentcraft snapshot.
 ---
 
 # Installing the addon
 
-The plugin bundles the TinkerKit addon in `${CLAUDE_PLUGIN_ROOT}/addon/TinkerKit`. Installing copies it into the game's `Interface/AddOns` folder.
+The plugin bundles the Agentcraft addon in `${CLAUDE_PLUGIN_ROOT}/addon/Agentcraft`. Installing copies it into the game's `Interface/AddOns` folder.
 
 The game can stay open: it loads addon files only on login and `/reload`.
 
@@ -19,6 +19,6 @@ The game can stay open: it loads addon files only on login and `/reload`.
 2. Tell the user to type `/reload` in game (or log in), then `/reload` once more. The second reload writes the first snapshot to disk.
 3. Run `overview`. Check: `snapshots` lists the character.
 
-Running `install` again updates the addon to the plugin's version. It replaces the whole `TinkerKit` folder, so local edits there are lost.
+Running `install` again updates the addon to the plugin's version. It replaces the whole `Agentcraft` folder, so local edits there are lost.
 
-For developing TinkerKit from a clone of the plugin repo, use `install -Link` instead. It links the AddOns folder to the clone, so edits load on `/reload`. It needs the existing `TinkerKit` folder removed first.
+For developing Agentcraft from a clone of the plugin repo, use `install -Link` instead. It links the AddOns folder to the clone, so edits load on `/reload`. It needs the existing `Agentcraft` folder removed first.

@@ -1,5 +1,5 @@
 -- Settings page: module on/off, small tool buttons (ns.RegisterAction) and
--- the log of everything TinkerKit printed (selectable, Ctrl+C to copy).
+-- the log of everything Agentcraft printed (selectable, Ctrl+C to copy).
 local _, ns = ...
 local UI = ns.UI
 local WIDTH = 600
@@ -55,7 +55,7 @@ ns.RegisterPage({
     UI.Fill(bg, 0, 0, 0, 0.35)
     UI.Border(bg, 1, 1, 1, 0.08)
 
-    local scroll = CreateFrame("ScrollFrame", "TinkerKitLogScroll", bg, "UIPanelScrollFrameTemplate")
+    local scroll = CreateFrame("ScrollFrame", "AgentcraftLogScroll", bg, "UIPanelScrollFrameTemplate")
     scroll:SetPoint("TOPLEFT", 6, -6)
     scroll:SetPoint("BOTTOMRIGHT", -26, 6)
     local log = CreateFrame("EditBox", nil, scroll)

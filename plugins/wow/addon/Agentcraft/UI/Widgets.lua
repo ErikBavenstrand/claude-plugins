@@ -1,4 +1,4 @@
--- Shared building blocks for TinkerKit pages, so every page looks the same:
+-- Shared building blocks for Agentcraft pages, so every page looks the same:
 -- text, section headers, panel fills/borders, buttons and action-slot icons.
 local _, ns = ...
 local UI = {}

@@ -1,7 +1,7 @@
 -- ActionBars: fills your action bars from a per-class profile.
---   /tk spells        show the plan for your class
---   /tk spells apply  place everything (saves current bar contents first)
---   /tk spells undo   put the bars back the way they were
+--   /ac spells        show the plan for your class
+--   /ac spells apply  place everything (saves current bar contents first)
+--   /ac spells undo   put the bars back the way they were
 --
 -- Keyed bars (keys come from the Keybinds module):
 --   slot:  1 2 3 4 5 6 7 8 9 10 11 12
@@ -323,7 +323,7 @@ local function Apply()
   end
   if #right > 12 or #right2 > 12 then ns.Print("side bars full; some spells stay in the spellbook.") end
 
-  ns.Print("bars set for " .. class .. ". /tk spells undo to go back.")
+  ns.Print("bars set for " .. class .. ". /ac spells undo to go back.")
   if #missing > 0 then ns.Print("not learned yet (left empty): " .. table.concat(missing, ", ")) end
 end
 
@@ -555,7 +555,7 @@ ns.RegisterPage({
   },
 })
 
-ns.RegisterCommand("spells", "fill bars: /tk spells [apply|undo]", function(arg)
+ns.RegisterCommand("spells", "fill bars: /ac spells [apply|undo]", function(arg)
   arg = (arg or ""):lower()
   if arg == "apply" then Apply()
   elseif arg == "undo" then Undo()

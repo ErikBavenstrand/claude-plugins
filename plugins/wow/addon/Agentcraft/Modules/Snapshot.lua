@@ -1,6 +1,6 @@
--- Snapshot: writes your whole character state to TinkerKitDB on every
+-- Snapshot: writes your whole character state to AgentcraftDB on every
 -- /reload and logout, so it can be read outside the game
--- (WTF\Account\<account>\SavedVariables\TinkerKit.lua).
+-- (WTF\Account\<account>\SavedVariables\Agentcraft.lua).
 -- Each section runs on its own; if one fails, its error is stored instead
 -- and the rest still saves.
 local _, ns = ...
@@ -180,11 +180,13 @@ local function Spellbook(pet)
     end
     for tab = 1, C_SpellBook.GetNumSpellBookSkillLines() do
       local line = C_SpellBook.GetSpellBookSkillLineInfo(tab)
-      local list = {}
-      for i = line.itemIndexOffset + 1, line.itemIndexOffset + line.numSpellBookItems do
-        table.insert(list, Entry(i))
+      if line then
+        local list = {}
+        for i = line.itemIndexOffset + 1, line.itemIndexOffset + line.numSpellBookItems do
+          table.insert(list, Entry(i))
+        end
+        out[line.name or ("Tab " .. tab)] = list
       end
-      out[line.name or ("Tab " .. tab)] = list
     end
   else
     local book = pet and BOOKTYPE_PET or BOOKTYPE_SPELL
@@ -430,6 +432,17 @@ local SECTIONS = {
   { "reputation", Reputation }, { "quests", Quests }, { "bars", Bars },
 }
 
+-- While the game loads or quits, the client reports an empty character
+-- (no XP, no spellbook, wrong level). Such a snapshot must not replace a
+-- good one.
+local function LooksComplete(snap)
+  local book = snap.spellbook
+  if type(book) ~= "table" or next(book) == nil then return false end
+  local maxLevel = GetMaxPlayerLevel and GetMaxPlayerLevel() or 60
+  return UnitXPMax("player") > 0 or UnitLevel("player") >= maxLevel
+end
+
+-- Returns the character key and whether the snapshot was stored.
 function M:Save()
   local key = (UnitName("player") or "?") .. "-" .. (GetRealmName() or "?")
   local snap = { time = date("%Y-%m-%d %H:%M:%S") }
@@ -437,8 +450,24 @@ function M:Save()
     local ok, result = pcall(s[2])
     snap[s[1]] = ok and result or ("error: " .. tostring(result))
   end
+  if not LooksComplete(snap) then
+    if self.db[key] then self.db[key].skippedIncomplete = snap.time end
+    return key, false
+  end
   self.db[key] = snap
-  return key
+  return key, true
+end
+
+-- Save soon after something changes, at most once per 10 seconds, so the
+-- last good snapshot is recent when the game quits.
+local pending
+local function SaveSoon(self)
+  if pending then return end
+  pending = true
+  C_Timer.After(10, function()
+    pending = false
+    self:Save()
+  end)
 end
 
 function M:OnEnable()
@@ -447,14 +476,31 @@ function M:OnEnable()
 end
 
 M.events = {
-  PLAYER_ENTERING_WORLD = function(self) self:Save() end,
-  PLAYER_LOGOUT = function(self) self:Save() end, -- also fires on /reload
+  PLAYER_ENTERING_WORLD = SaveSoon,
+  PLAYER_LEVEL_UP = SaveSoon,
+  PLAYER_XP_UPDATE = SaveSoon,
+  PLAYER_MONEY = SaveSoon,
+  PLAYER_EQUIPMENT_CHANGED = SaveSoon,
+  BAG_UPDATE_DELAYED = SaveSoon,
+  QUEST_TURNED_IN = SaveSoon,
+  SPELLS_CHANGED = SaveSoon,
+  TRAIT_CONFIG_UPDATED = SaveSoon,
+  SKILL_LINES_CHANGED = SaveSoon,
+  UNIT_PET = SaveSoon,
+  -- Also fires on /reload. On quit the data is often already gone; Save
+  -- then keeps the previous snapshot.
+  PLAYER_LOGOUT = function(self) self:Save() end,
 }
 
-ns.RegisterAction("Snapshot", "Save now", function()
-  ns.Print("snapshot saved for " .. M:Save() .. ". It's written to disk on /reload or logout.")
-end, "Save your character state now (written to disk on /reload or logout).")
+local function SaveNow()
+  local key, stored = M:Save()
+  if stored then
+    ns.Print("snapshot saved for " .. key .. ". It's written to disk on /reload or logout.")
+  else
+    ns.Print("character data isn't loaded yet; kept the previous snapshot. Try again in a few seconds.")
+  end
+end
 
-ns.RegisterCommand("snapshot", "save your character state now (written on /reload)", function()
-  ns.Print("snapshot saved for " .. M:Save() .. ". Type /reload to write the file.")
-end)
+ns.RegisterAction("Snapshot", "Save now", SaveNow,
+  "Save your character state now (written to disk on /reload or logout).")
+ns.RegisterCommand("snapshot", "save your character state now (written on /reload)", SaveNow)

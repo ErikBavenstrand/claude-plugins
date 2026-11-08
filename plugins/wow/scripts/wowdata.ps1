@@ -4,13 +4,13 @@
 .DESCRIPTION
   Commands:
     overview                          install, characters, saved-variable files, logs, addons
-    character [-Character] [-Path]    TinkerKit snapshot (written on every /reload and logout)
+    character [-Character] [-Path]    Agentcraft snapshot (written on every /reload and logout)
     sv -File <name> [-Character] [-Path]  any addon's SavedVariables file, parsed from Lua
     binds [-Character]                keybinds (bindings-cache.wtf)
     errors [-Count]                   recent Lua errors and console messages
     log [-File] [-Tail] [-Grep]       a file in Logs (default: newest combat log)
     file -Path <rel> [-Tail] [-Grep]  any text file under the game folder
-    install [-Link]                   copy the bundled TinkerKit addon into AddOns
+    install [-Link]                   copy the bundled Agentcraft addon into AddOns
   -Path walks into the data with "/" between keys, e.g. -Path talents or -Path pet/spellbook.
   Output larger than -Max characters is replaced by a list of keys to narrow with -Path.
   Needs only Windows PowerShell 5.1.
@@ -336,10 +336,10 @@ function Cmd-Overview {
     otherFlavors = @($Flavors | Where-Object { $_ -ne $Flavor })
     account = if ($acct) { $acct.Name } else { $null }
   }
-  $snapFile = if ($acct) { Join-Path $acct.FullName 'SavedVariables\TinkerKit.lua' }
+  $snapFile = if ($acct) { Join-Path $acct.FullName 'SavedVariables\Agentcraft.lua' }
   $snaps = [ordered]@{}
   if ($snapFile -and (Test-Path -LiteralPath $snapFile)) {
-    $db = (Read-Lua $snapFile)['TinkerKitDB']
+    $db = (Read-Lua $snapFile)['AgentcraftDB']
     $all = $null
     try { $all = $db['modules']['Snapshot'] } catch {}
     if ($all) {
@@ -350,7 +350,7 @@ function Cmd-Overview {
       }
     }
   }
-  $info.snapshots = if ($snaps.Count) { $snaps } else { 'none yet: install the TinkerKit addon (install command), log in and /reload' }
+  $info.snapshots = if ($snaps.Count) { $snaps } else { 'none yet: install the Agentcraft addon (install command), log in and /reload' }
   $info.characterFolders = @(Get-CharacterDirs $acct | ForEach-Object { $_.Name })
   if ($acct) {
     $info.accountSavedVariables = @(Get-ChildItem -LiteralPath (Join-Path $acct.FullName 'SavedVariables') -Filter *.lua -ErrorAction SilentlyContinue | ForEach-Object { $_.BaseName })
@@ -365,10 +365,10 @@ function Cmd-Overview {
 
 function Cmd-Character {
   $acct = Get-AccountDir
-  $f = Join-Path $acct.FullName 'SavedVariables\TinkerKit.lua'
-  if (-not (Test-Path -LiteralPath $f)) { throw 'No TinkerKit data yet. Install the addon (install command), log in and type /reload.' }
-  $all = (Read-Lua $f)['TinkerKitDB']['modules']['Snapshot']
-  if (-not $all -or $all.Count -eq 0) { throw 'TinkerKit is installed but has no snapshot yet. Type /reload in game.' }
+  $f = Join-Path $acct.FullName 'SavedVariables\Agentcraft.lua'
+  if (-not (Test-Path -LiteralPath $f)) { throw 'No Agentcraft data yet. Install the addon (install command), log in and type /reload.' }
+  $all = (Read-Lua $f)['AgentcraftDB']['modules']['Snapshot']
+  if (-not $all -or $all.Count -eq 0) { throw 'Agentcraft is installed but has no snapshot yet. Type /reload in game.' }
   $key = $null
   if ($Character) {
     $key = @($all.Keys | Where-Object { $_ -like "$Character*" }) | Select-Object -First 1
@@ -456,8 +456,8 @@ function Cmd-File {
 }
 
 function Cmd-Install {
-  $source = Join-Path $PSScriptRoot '..\addon\TinkerKit' | Resolve-Path | Select-Object -ExpandProperty Path
-  $target = Join-Path $Game 'Interface\AddOns\TinkerKit'
+  $source = Join-Path $PSScriptRoot '..\addon\Agentcraft' | Resolve-Path | Select-Object -ExpandProperty Path
+  $target = Join-Path $Game 'Interface\AddOns\Agentcraft'
   $item = Get-Item -LiteralPath $target -ErrorAction SilentlyContinue
   if ($item -and $item.LinkType) {
     Out-Text "$target is already a link to $($item.Target). Nothing to do."
@@ -471,7 +471,7 @@ function Cmd-Install {
   }
   & robocopy $source $target /MIR /NFL /NDL /NJH /NJS /NP | Out-Null
   if ($LASTEXITCODE -ge 8) { throw "robocopy failed with exit code $LASTEXITCODE" }
-  Out-Text "Installed TinkerKit to $target. In game: /reload (or restart), then /tk opens the window."
+  Out-Text "Installed Agentcraft to $target. In game: /reload (or restart), then /ac opens the window."
 }
 
 try {

@@ -15,7 +15,7 @@
     {
       "name": "wow",
       "source": "./plugins/wow",
-      "description": "Read your World of Warcraft character from disk and build on the bundled TinkerKit addon."
+      "description": "Read your World of Warcraft character from disk and build on the bundled Agentcraft addon."
     }
   ]
 }

@@ -1,11 +1,11 @@
 ---
 name: reading-game-state
-description: Use when the user asks about their World of Warcraft character or game setup, such as gear, stats, talents, spells, pet, bags, gold, professions, quests, reputation, keybinds, action bars, addons, Lua errors or combat logs. Reads the data the TinkerKit addon and the game write to disk, so answers rest on the user's real state.
+description: Use when the user asks about their World of Warcraft character or game setup, such as gear, stats, talents, spells, pet, bags, gold, professions, quests, reputation, keybinds, action bars, addons, Lua errors or combat logs. Reads the data the Agentcraft addon and the game write to disk, so answers rest on the user's real state.
 ---
 
 # Reading game state
 
-The TinkerKit addon writes a full snapshot of the character on every `/reload` and logout. The game also writes keybinds, addon data and logs. `wowdata.ps1` reads all of it and prints JSON.
+The Agentcraft addon writes a full snapshot of the character on every `/reload` and logout. The game also writes keybinds, addon data and logs. `wowdata.ps1` reads all of it and prints JSON.
 
 ## Commands
 
@@ -18,7 +18,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "${CLAUDE_PLUGIN_ROOT}/scrip
 | Command | Reads |
 | --- | --- |
 | `overview` | Install folder, characters with snapshot times, addon data files, logs, installed addons |
-| `character [-Character Name] [-Path a/b]` | TinkerKit snapshot: `basics`, `stats`, `equipment`, `bags`, `skills`, `spellbook`, `talents`, `pet`, `buffs`, `reputation`, `quests`, `bars` |
+| `character [-Character Name] [-Path a/b]` | Agentcraft snapshot: `basics`, `stats`, `equipment`, `bags`, `skills`, `spellbook`, `talents`, `pet`, `buffs`, `reputation`, `quests`, `bars` |
 | `sv -File Name [-Character Name] [-Path a/b]` | Any addon's SavedVariables file, such as `TradeSkillMaster` |
 | `binds [-Grep regex]` | Keybinds, key to command |
 | `errors [-Count n]` | Recent Lua errors from the console history |
@@ -43,4 +43,4 @@ If `overview` shows no snapshot, run the `installing-addon` skill.
 - Health, mana and some combat values show as `null`. The client marks them secret and addons can't read them.
 - Names come in the client's language, and realm names in folder paths can differ from the in-game realm name.
 - The combat log exists only while the user has `/combatlog` on. It stops on logout.
-- On macOS or Linux the script needs PowerShell 7 (`pwsh`). Without it, read the files directly: snapshots are in `WTF/Account/<account>/SavedVariables/TinkerKit.lua` under `TinkerKitDB.modules.Snapshot`.
+- On macOS or Linux the script needs PowerShell 7 (`pwsh`). Without it, read the files directly: snapshots are in `WTF/Account/<account>/SavedVariables/Agentcraft.lua` under `AgentcraftDB.modules.Snapshot`.

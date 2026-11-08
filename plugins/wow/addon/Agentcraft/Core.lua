@@ -1,11 +1,11 @@
--- TinkerKit core: module registry, saved settings, enable/disable, slash commands.
+-- Agentcraft core: module registry, saved settings, enable/disable, slash commands.
 -- Works on retail and classic-era clients (only uses APIs common to all).
 local ADDON, ns = ...
-TinkerKit = ns -- global handle so macros or other addons can reach it
+Agentcraft = ns -- global handle so macros or other addons can reach it
 ns.modules, ns.order, ns.commands = {}, {}, {}
 
 function ns.Print(...)
-  print("|cff33ff99TinkerKit|r:", ...)
+  print("|cff33ff99Agentcraft|r:", ...)
 end
 
 local function CopyDefaults(src, dst)
@@ -21,7 +21,7 @@ local function CopyDefaults(src, dst)
 end
 
 --[[ Register a module. Fields on mod (all optional):
-  description   one line shown in /tk modules
+  description   one line shown in /ac modules
   enabled       default on/off (true if omitted)
   defaults      table of default account-wide settings  -> self.db
   charDefaults  table of default per-character settings -> self.charDB
@@ -36,12 +36,12 @@ function ns.RegisterModule(name, mod)
   return mod
 end
 
--- Register a slash subcommand: /tk <name> <args>
+-- Register a slash subcommand: /ac <name> <args>
 function ns.RegisterCommand(name, help, fn)
   ns.commands[name:lower()] = { help = help, fn = fn }
 end
 
---[[ Register a page in the TinkerKit window (one entry in the sidebar).
+--[[ Register a page in the Agentcraft window (one entry in the sidebar).
   id        unique string
   title     sidebar and header text
   icon      texture path or file ID for the sidebar icon
@@ -108,7 +108,8 @@ function SetEnabled(mod, on)
   ns.db.enabled[mod.name] = on
   mod.active = on
   for ev in pairs(mod.events or {}) do
-    if on then frame:RegisterEvent(ev) end
+    -- pcall: an event that doesn't exist on this game version would error.
+    if on then pcall(frame.RegisterEvent, frame, ev) end
   end
   if on and mod.OnEnable then mod:OnEnable() end
   if not on and mod.OnDisable then mod:OnDisable() end
@@ -119,9 +120,9 @@ frame:SetScript("OnEvent", function(_, event, ...)
   if event == "ADDON_LOADED" then
     if ... ~= ADDON or loaded then return end
     loaded = true
-    TinkerKitDB = TinkerKitDB or {}
-    TinkerKitCharDB = TinkerKitCharDB or {}
-    ns.db, ns.charDB = TinkerKitDB, TinkerKitCharDB
+    AgentcraftDB = AgentcraftDB or {}
+    AgentcraftCharDB = AgentcraftCharDB or {}
+    ns.db, ns.charDB = AgentcraftDB, AgentcraftCharDB
     -- Counts loads. If it keeps resetting to 1, the client isn't reading
     -- SavedVariables back (a known WoW Forever beta bug).
     ns.db.loadCount = (ns.db.loadCount or 0) + 1
@@ -152,17 +153,17 @@ end)
 
 local function Toggle(arg, on)
   local mod = ns.modules[(arg or ""):lower()]
-  if not mod then return ns.Print("no module named '" .. (arg or "") .. "'. Try /tk modules") end
+  if not mod then return ns.Print("no module named '" .. (arg or "") .. "'. Try /ac modules") end
   if mod.active == on then return ns.Print(mod.name .. " is already " .. (on and "on" or "off")) end
   SetEnabled(mod, on)
   ns.Print(mod.name .. (on and " enabled" or " disabled"))
 end
-ns.RegisterCommand("on", "enable a module: /tk on <module>", function(arg) Toggle(arg, true) end)
-ns.RegisterCommand("off", "disable a module: /tk off <module>", function(arg) Toggle(arg, false) end)
+ns.RegisterCommand("on", "enable a module: /ac on <module>", function(arg) Toggle(arg, true) end)
+ns.RegisterCommand("off", "disable a module: /ac off <module>", function(arg) Toggle(arg, false) end)
 
-SLASH_TINKERKIT1 = "/tk"
-SLASH_TINKERKIT2 = "/tinkerkit"
-SlashCmdList.TINKERKIT = function(msg)
+SLASH_AGENTCRAFT1 = "/ac"
+SLASH_AGENTCRAFT2 = "/agentcraft"
+SlashCmdList.AGENTCRAFT = function(msg)
   local cmd, rest = (msg or ""):match("^(%S*)%s*(.-)$")
   local entry = ns.commands[cmd:lower()]
   if entry then
@@ -173,11 +174,11 @@ SlashCmdList.TINKERKIT = function(msg)
     return
   end
   if cmd == "" and ns.ToggleUI then return ns.ToggleUI() end
-  ns.Print("commands (/tk alone opens the window):")
+  ns.Print("commands (/ac alone opens the window):")
   local names = {}
   for name in pairs(ns.commands) do table.insert(names, name) end
   table.sort(names)
   for _, name in ipairs(names) do
-    print("  /tk " .. name .. " - " .. ns.commands[name].help)
+    print("  /ac " .. name .. " - " .. ns.commands[name].help)
   end
 end

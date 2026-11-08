@@ -1,4 +1,4 @@
--- The TinkerKit window (/tk): sidebar with one entry per registered page,
+-- The Agentcraft window (/ac): sidebar with one entry per registered page,
 -- a header with the page title and summary, the page itself, and a footer
 -- with the last result plus the page's buttons. Pages come from
 -- ns.RegisterPage (see Core.lua); nothing here knows about specific modules.
@@ -28,7 +28,7 @@ end
 local function ShowResult(out)
   local lines = {}
   for line in out:gmatch("[^\n]+") do
-    lines[#lines + 1] = (line:gsub("^|cff33ff99TinkerKit|r:%s*", ""))
+    lines[#lines + 1] = (line:gsub("^|cff33ff99Agentcraft|r:%s*", ""))
   end
   status:SetText(#lines > 0 and table.concat(lines, "   ") or "Done.")
 end
@@ -105,7 +105,7 @@ end
 
 local function Build()
   local portrait = HasTemplate("PortraitFrameTemplate")
-  frame = CreateFrame("Frame", "TinkerKitFrame", UIParent,
+  frame = CreateFrame("Frame", "AgentcraftFrame", UIParent,
     portrait and "PortraitFrameTemplate" or "BasicFrameTemplateWithInset")
   frame:SetSize(W, H)
   frame:SetPoint("CENTER")
@@ -117,12 +117,12 @@ local function Build()
   frame:RegisterForDrag("LeftButton")
   frame:SetScript("OnDragStart", frame.StartMoving)
   frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
-  tinsert(UISpecialFrames, "TinkerKitFrame") -- Escape closes it
+  tinsert(UISpecialFrames, "AgentcraftFrame") -- Escape closes it
 
   if frame.SetTitle then
-    frame:SetTitle("TinkerKit")
+    frame:SetTitle("Agentcraft")
   else
-    local t = UI.Text(frame, "TinkerKit", "GameFontHighlight")
+    local t = UI.Text(frame, "Agentcraft", "GameFontHighlight")
     t:SetPoint("TOP", 0, -6)
   end
 
@@ -157,7 +157,7 @@ local function Build()
   UI.Fill(nav, 0, 0, 0, 0.35)
   UI.Border(nav, 1, 1, 1, 0.08)
   local version = (C_AddOns and C_AddOns.GetAddOnMetadata or GetAddOnMetadata)(ADDON, "Version")
-  local ver = UI.Text(nav, "TinkerKit " .. (version or ""), "GameFontDisableSmall")
+  local ver = UI.Text(nav, "Agentcraft " .. (version or ""), "GameFontDisableSmall")
   ver:SetPoint("BOTTOM", 0, 8)
 
   -- Page area and footer.
@@ -218,11 +218,11 @@ function ns.OpenPage(id)
 end
 
 ns.RegisterCommand("help", "list slash commands", function()
-  ns.Print("commands (/tk alone opens the window):")
+  ns.Print("commands (/ac alone opens the window):")
   local names = {}
   for name in pairs(ns.commands) do table.insert(names, name) end
   table.sort(names)
   for _, name in ipairs(names) do
-    print("  /tk " .. name .. " - " .. ns.commands[name].help)
+    print("  /ac " .. name .. " - " .. ns.commands[name].help)
   end
 end)

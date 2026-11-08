@@ -1,5 +1,5 @@
 -- Template for a new module. Copy this file, rename it, and add it to
--- TinkerKit.toc (above UI\Window.lua). This file itself is never loaded.
+-- Agentcraft.toc (above UI\Window.lua). This file itself is never loaded.
 local _, ns = ...
 local UI = ns.UI
 local M = ns.RegisterModule("Example", {
@@ -18,7 +18,7 @@ M.events = {
 function M:OnEnable() end
 function M:OnDisable() end
 
--- Optional: a page in the /tk window (sidebar entry + footer buttons).
+-- Optional: a page in the /ac window (sidebar entry + footer buttons).
 ns.RegisterPage({
   id = "example",
   title = "Example",
@@ -38,7 +38,7 @@ ns.RegisterPage({
   },
 })
 
--- Optional: a slash command, /tk example
+-- Optional: a slash command, /ac example
 ns.RegisterCommand("example", "say hello", function(args)
   ns.Print(M.db.greeting .. " " .. args)
 end)

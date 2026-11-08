@@ -1,7 +1,7 @@
 -- Keybinds: applies one shared key layout to the action bars and pet bar.
---   /tk keys        show the layout
---   /tk keys apply  apply it (the first apply saves your original binds)
---   /tk keys undo   restore the binds from before the first apply
+--   /ac keys        show the layout
+--   /ac keys apply  apply it (the first apply saves your original binds)
+--   /ac keys undo   restore the binds from before the first apply
 local _, ns = ...
 local M = ns.RegisterModule("Keybinds", {
   description = "shared key layout for action bars and the pet bar",
@@ -73,7 +73,7 @@ local function Apply()
   end
 
   SaveBindings(GetCurrentBindingSet())
-  ns.Print("keybinds applied. /tk keys undo to go back to your original binds.")
+  ns.Print("keybinds applied. /ac keys undo to go back to your original binds.")
 end
 
 local function Undo()
@@ -251,12 +251,12 @@ ns.RegisterPage({
   end,
 
   actions = {
-    { label = "Undo", fn = Undo, tooltip = "Restore the binds you had before TinkerKit." },
+    { label = "Undo", fn = Undo, tooltip = "Restore the binds you had before Agentcraft." },
     { label = "Apply", fn = Apply, tooltip = "Bind bars 1-3 and the pet bar. Your first original binds are saved." },
   },
 })
 
-ns.RegisterCommand("keys", "keybind layout: /tk keys [apply|undo]", function(arg)
+ns.RegisterCommand("keys", "keybind layout: /ac keys [apply|undo]", function(arg)
   arg = (arg or ""):lower()
   if arg == "apply" then Apply()
   elseif arg == "undo" then Undo()
