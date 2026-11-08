@@ -29,9 +29,15 @@ local function Money(c)
 end
 
 local function Pack(...) return { n = select("#", ...), ... } end
+-- Values the client hides from addons ("secret") can't be turned into text.
+local function Safe(v)
+  if issecretvalue and issecretvalue(v) then return "<secret>" end
+  return tostring(v)
+end
+
 local function Join(t)
   local parts = {}
-  for i = 1, t.n or #t do parts[i] = tostring(t[i]) end
+  for i = 1, t.n or #t do parts[i] = Safe(t[i]) end
   return table.concat(parts, ", ")
 end
 
@@ -135,6 +141,23 @@ end
 -- Skills: weapon skills, professions, languages, with rank/max.
 local function Skills()
   local out = {}
+  if C_SkillInfo and C_SkillInfo.GetNumSkillLines and C_SkillInfo.GetSkillLineInfo then
+    -- Modern-engine clients (WoW Forever): "Name rank/max (+mod)" grouped
+    -- under their header, such as "Weapon Skills".
+    local section = "Skills"
+    for i = 1, C_SkillInfo.GetNumSkillLines() do
+      local ok, s = pcall(C_SkillInfo.GetSkillLineInfo, i)
+      if ok and type(s) == "table" and s.name then
+        if s.isHeader then
+          section = s.name
+        else
+          out[section] = out[section] or {}
+          table.insert(out[section], string.format("%s %d/%d%s", s.name, s.rank or 0, s.maxRank or 0,
+            (s.modifier and s.modifier ~= 0) and (" (+" .. s.modifier .. ")") or ""))
+        end
+      end
+    end
+  end
   if GetNumSkillLines then
     local section = "Skills"
     for i = 1, GetNumSkillLines() do
@@ -147,7 +170,8 @@ local function Skills()
           (mod and mod ~= 0) and (" (+" .. mod .. ")") or ""))
       end
     end
-  elseif GetProfessions then
+  end
+  if GetProfessions then
     local list = {}
     for _, idx in ipairs({ GetProfessions() }) do
       if idx then
@@ -305,6 +329,25 @@ local function Pet()
     p.damagePercent = damagePct
     p.loyaltyRate = loyaltyRate
   end
+  -- Modern-engine clients keep these in C_PetInfo (as Simulationcraft's Forever mode does).
+  if C_PetInfo then
+    if C_PetInfo.GetPetHappiness then
+      local r = Pack(pcall(C_PetInfo.GetPetHappiness))
+      if r[1] then
+        local happiness = r[2]
+        p.happiness = ({ "Unhappy", "Content", "Happy" })[tonumber(happiness) or 0] or tostring(happiness)
+        p.happinessRaw = Join({ n = r.n - 1, select(2, unpack(r, 1, r.n)) })
+      end
+    end
+    if C_PetInfo.GetPetTrainingPoints then
+      local r = Pack(pcall(C_PetInfo.GetPetTrainingPoints))
+      if r[1] then p.trainingPoints = Join({ n = r.n - 1, select(2, unpack(r, 1, r.n)) }) end
+    end
+    if C_PetInfo.GetPetLoyalty then
+      local ok, v = pcall(C_PetInfo.GetPetLoyalty)
+      if ok then p.loyalty = v end
+    end
+  end
   if GetPetLoyalty then p.loyalty = GetPetLoyalty() end
   if GetPetExperience then
     local cur, max = GetPetExperience()
@@ -432,6 +475,47 @@ local SECTIONS = {
   { "reputation", Reputation }, { "quests", Quests }, { "bars", Bars },
 }
 
+-- Extension points for SnapshotMore.lua and SnapshotCached.lua -----------------
+
+M.util = { SpellName = SpellName, ItemName = ItemName, LinkName = LinkName, Money = Money,
+  Pack = Pack, Join = Join }
+
+function M.CharKey()
+  return (UnitName("player") or "?") .. "-" .. (GetRealmName() or "?")
+end
+
+-- A section rebuilt on every save.
+function M.AddSection(name, fn) table.insert(SECTIONS, { name, fn }) end
+
+-- A section that can only be read at certain times (bank open, server reply).
+-- It is stored with a "seen" time and kept across saves until read again.
+local CACHED = {}
+function M.SetCached(name, data)
+  CACHED[name] = true
+  local key = M.CharKey()
+  M.db[key] = M.db[key] or {}
+  if type(data) == "table" then data.seen = date("%Y-%m-%d %H:%M:%S") end
+  M.db[key][name] = data
+end
+function M.DeclareCached(name) CACHED[name] = true end
+
+-- Several files can listen to the same event.
+local handlers = {}
+function M.On(event, fn)
+  if not handlers[event] then
+    handlers[event] = {}
+    local existing = M.events[event]
+    if existing then table.insert(handlers[event], existing) end
+    M.events[event] = function(self, ...)
+      for _, h in ipairs(handlers[event]) do
+        local ok, err = pcall(h, self, ...)
+        if not ok then ns.lastSnapshotError = event .. ": " .. tostring(err) end
+      end
+    end
+  end
+  table.insert(handlers[event], fn)
+end
+
 -- While the game loads or quits, the client reports an empty character
 -- (no XP, no spellbook, wrong level). Such a snapshot must not replace a
 -- good one.
@@ -453,6 +537,10 @@ function M:Save()
   if not LooksComplete(snap) then
     if self.db[key] then self.db[key].skippedIncomplete = snap.time end
     return key, false
+  end
+  local old = self.db[key]
+  if old then
+    for name in pairs(CACHED) do snap[name] = old[name] end
   end
   self.db[key] = snap
   return key, true

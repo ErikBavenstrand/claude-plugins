@@ -18,12 +18,30 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "${CLAUDE_PLUGIN_ROOT}/scrip
 | Command | Reads |
 | --- | --- |
 | `overview` | Install folder, characters with snapshot times, addon data files, logs, installed addons |
-| `character [-Character Name] [-Path a/b]` | Agentcraft snapshot: `basics`, `stats`, `equipment`, `bags`, `skills`, `spellbook`, `talents`, `pet`, `buffs`, `reputation`, `quests`, `bars` |
+| `character [-Character Name] [-Path a/b]` | Agentcraft snapshot; sections listed below |
 | `sv -File Name [-Character Name] [-Path a/b]` | Any addon's SavedVariables file, such as `TradeSkillMaster` |
 | `binds [-Grep regex]` | Keybinds, key to command |
 | `errors [-Count n]` | Recent Lua errors from the console history |
 | `log [-File name] [-Tail n] [-Grep regex]` | The newest combat log, or another file in `Logs` |
 | `file -Path rel/path [-Grep regex]` | Any text file under the game folder, such as `WTF/Config.wtf` |
+
+## Snapshot sections
+
+| Section | Holds |
+| --- | --- |
+| `basics`, `stats`, `combatStats` | Level, XP, gold, zone; primary stats; crit, hit, haste, defense, resistances, spell power |
+| `equipment`, `gear` | Equipped items; `gear` adds enchant, suffix and gem IDs plus full tooltip text |
+| `bags`, `bagItems` | Bag contents; `bagItems` adds item IDs, quality and tooltips |
+| `skills`, `spellbook`, `talents` | All skills including weapon skills; spells with ranks; talents with descriptions |
+| `pet` | Hunter or warlock pet: stats, happiness, training points, abilities, action bar |
+| `questLog`, `completedQuests`, `quests` | Quests with objectives and progress; IDs of every turned-in quest |
+| `reputation`, `currencyPvp`, `buffs` | Standings; currencies, honor and PvP stats; active buffs |
+| `macros`, `bars`, `collections` | Macro text; action bar slots with keys; mounts, companions, equipment sets |
+| `social`, `addons`, `apiProbe` | Friends, guild roster, group; installed addons; which APIs the client has |
+| `bank`, `mail`, `recipes`, `flightPaths`, `stable`, `auctions` | Saved when the user last opened that window; each has a `seen` time |
+| `playedTime`, `lockouts` | Asked from the server shortly after login |
+
+A missing window-based section means the user hasn't opened that window since installing Agentcraft. Ask them to open it once, wait a second, then `/reload`. Tell the user how old a `seen` time is when it matters.
 
 `-Path` walks into the data with `/` between keys, such as `-Path pet/spellbook`. Output over 40,000 characters is replaced by a key list; narrow it with `-Path`. Without `-Character`, the most recent snapshot is used.
 

@@ -18,7 +18,9 @@ The addon source is in `${CLAUDE_PLUGIN_ROOT}/addon/Agentcraft`. Edit the copy t
 | `UI/Settings.lua` | Module switches, tool buttons, log |
 | `Modules/ActionBars.lua` | Fills bars from per-class profiles (`M.profiles.<CLASS>`) and the shared `M.utility` item bar |
 | `Modules/Keybinds.lua` | One key layout for bars 1-3 and the pet bar |
-| `Modules/Snapshot.lua` | Writes the character state to SavedVariables; add a section to `SECTIONS` |
+| `Modules/Snapshot.lua` | Writes the character state to SavedVariables. Skips saves while the client reports an empty character. Exposes `M.AddSection`, `M.SetCached`, `M.On` and `M.util` |
+| `Modules/SnapshotMore.lua` | Sections readable at any time. Add one with `M.AddSection(name, fn)` |
+| `Modules/SnapshotCached.lua` | Data only readable with a window open or after a server reply. Store it with `M.SetCached(name, table)`, triggered from `M.On(event, fn)` |
 | `Modules/_Template.lua` | Copy this to start a module. It shows every registration call. |
 
 A page's `actions` become footer buttons. `Build` runs once; `Refresh` runs on open, after each action and when bars, binds, bags or spells change.
