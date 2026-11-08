@@ -152,8 +152,11 @@ local function Skills()
           section = s.name
         else
           out[section] = out[section] or {}
-          table.insert(out[section], string.format("%s %d/%d%s", s.name, s.rank or 0, s.maxRank or 0,
-            (s.modifier and s.modifier ~= 0) and (" (+" .. s.modifier .. ")") or ""))
+          local text = string.format("%s %d/%d%s", s.name, s.rank or 0, s.maxRank or 0,
+            (s.modifier and s.modifier ~= 0) and (" (+" .. s.modifier .. ")") or "")
+          local dup = false
+          for _, existing in ipairs(out[section]) do if existing == text then dup = true end end
+          if not dup then table.insert(out[section], text) end
         end
       end
     end
@@ -340,8 +343,14 @@ local function Pet()
       end
     end
     if C_PetInfo.GetPetTrainingPoints then
-      local r = Pack(pcall(C_PetInfo.GetPetTrainingPoints))
-      if r[1] then p.trainingPoints = Join({ n = r.n - 1, select(2, unpack(r, 1, r.n)) }) end
+      local ok, total, spent = pcall(C_PetInfo.GetPetTrainingPoints)
+      if ok and tonumber(total) then
+        p.trainingPoints = string.format("%d total, %d spent, %d free", total, spent or 0, total - (spent or 0))
+      end
+    end
+    if C_PetInfo.GetPetTalentTree then
+      local ok, tree = pcall(C_PetInfo.GetPetTalentTree)
+      if ok and tree then p.talentTree = Safe(tree) end
     end
     if C_PetInfo.GetPetLoyalty then
       local ok, v = pcall(C_PetInfo.GetPetLoyalty)
