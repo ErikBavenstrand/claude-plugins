@@ -19,6 +19,17 @@ Package names below are Homebrew formulae. On Linux, use the distro's package ma
 - Skill `researching`: research a question across the web, MCP tools and local files, scaling effort to the question; writes cited, confidence-rated findings to the scratchpad.
 - Agent `researcher`: follows one lead for `researching`; the skill picks its model per lead.
 
+### wow
+
+Lets Claude read your World of Warcraft character and help you play it. Bundles the TinkerKit addon, which writes your full character state to disk on every `/reload` and logout, and adds an in-game window (`/tk`) for laying out action bars and keybinds.
+
+- Skill `reading-game-state`: reads gear, stats, talents, spells, pet, bags, quests, reputation, keybinds, any addon's saved data, Lua errors and combat logs.
+- Skill `installing-addon`: installs or updates TinkerKit in your WoW folder.
+- Skill `extending-addon`: TinkerKit's structure and client API gotchas, for adding features.
+- Script `scripts/wowdata.ps1`: the reader the skills run. Needs only Windows PowerShell; on macOS use PowerShell 7 (`pwsh`).
+
+After installing the plugin, ask Claude to install the addon, then type `/reload` twice in game.
+
 ## Install plugins
 
 Replace `<owner>/<repo>` with this repo's GitHub path and `<marketplace>` with the `name` in `.claude-plugin/marketplace.json`:
@@ -26,6 +37,7 @@ Replace `<owner>/<repo>` with this repo's GitHub path and `<marketplace>` with t
 ```sh
 claude plugin marketplace add <owner>/<repo>
 claude plugin install baven-core@<marketplace>
+claude plugin install wow@<marketplace>
 ```
 
 ## CLI tools

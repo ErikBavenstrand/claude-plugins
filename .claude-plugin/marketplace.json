@@ -11,6 +11,11 @@
       "name": "baven-core",
       "source": "./plugins/baven-core",
       "description": "Core skills other bavenstrand plugins build on."
+    },
+    {
+      "name": "wow",
+      "source": "./plugins/wow",
+      "description": "Read your World of Warcraft character from disk and build on the bundled TinkerKit addon."
     }
   ]
 }
