@@ -7,6 +7,9 @@
 --     name = "Pull",              -- shown on the action button; 16 characters max
 --     category = "combat",        -- a key from L.categories
 --     class = "HUNTER",           -- omit for every class
+--     race = "Tauren",            -- race file name (Scourge = Undead, NightElf); omit for every race
+--     profession = "Fishing",     -- profession it needs; omit if none
+--     tags = { "solo", "group" }, -- free topic tags shown as chips
 --     order = 10,                 -- position inside its category (lower first)
 --     icon = "Serpent Sting",     -- spell or item name for the picture; or iconFile = "INV_..."
 --     requires = { "Serpent Sting" }, -- spells that must be in your spellbook
@@ -29,6 +32,7 @@ ns.MacroLibrary = L
 L.categories = {
   { key = "combat", title = "Combat", icon = "Interface\\Icons\\Ability_Marksmanship" },
   { key = "pet", title = "Pet", icon = "Interface\\Icons\\Ability_Hunter_BeastCall" },
+  { key = "racial", title = "Racial", icon = "Interface\\Icons\\Ability_WarStomp" },
   { key = "fishing", title = "Fishing", icon = "Interface\\Icons\\Trade_Fishing" },
   { key = "professions", title = "Professions", icon = "Interface\\Icons\\Trade_Engineering" },
   { key = "utility", title = "Utility", icon = "Interface\\Icons\\INV_Misc_Bag_08" },
@@ -44,12 +48,93 @@ function L.Add(m)
   table.insert(L.macros, m)
 end
 
--- Macros for this character, sorted by category, then order, then name.
-function L.Entries()
+-- Tags ------------------------------------------------------------------------------
+-- Every macro gets tags worked out from its fields: class, race, profession,
+-- category, its own topic tags, and "Untested". The page filters on them.
+
+L.tagTypes = {
+  class = { order = 1 },
+  race = { order = 2, color = { 0.85, 0.65, 0.45 } },
+  profession = { order = 3, color = { 0.45, 0.85, 0.45 } },
+  topic = { order = 4, color = { 0.8, 0.8, 0.8 } },
+  status = { order = 5, color = { 1, 0.55, 0.2 } },
+}
+
+local RACE_LABELS = { Scourge = "Undead", NightElf = "Night Elf" }
+
+local function Title(s) return (s:gsub("^%l", string.upper)) end
+
+local function ClassLabel(class)
+  local names = LOCALIZED_CLASS_NAMES_MALE
+  return names and names[class] or Title(class:lower())
+end
+
+-- { { key, label, type, color }, ... } sorted by type then label.
+function L.Tags(m)
+  if m._tags then return m._tags end
+  local tags = {}
+  local function Add(kind, value, label, color)
+    tags[#tags + 1] = { key = kind .. ":" .. value, label = label, type = kind,
+      color = color or L.tagTypes[kind].color }
+  end
+  if m.class then
+    local c = RAID_CLASS_COLORS and RAID_CLASS_COLORS[m.class]
+    Add("class", m.class, ClassLabel(m.class), c and { c.r, c.g, c.b })
+  end
+  if m.race then Add("race", m.race, RACE_LABELS[m.race] or m.race) end
+  if m.profession then Add("profession", m.profession, m.profession) end
+  for _, c in ipairs(L.categories) do
+    if c.key == m.category then Add("topic", c.key, c.title) end
+  end
+  for _, t in ipairs(m.tags or {}) do Add("topic", t, Title(t)) end
+  if m.untested then Add("status", "untested", "Untested") end
+  table.sort(tags, function(a, b)
+    local oa, ob = L.tagTypes[a.type].order, L.tagTypes[b.type].order
+    if oa ~= ob then return oa < ob end
+    return a.label < b.label
+  end)
+  m._tags = tags
+  return tags
+end
+
+function L.HasTag(m, key)
+  for _, t in ipairs(L.Tags(m)) do if t.key == key then return true end end
+  return false
+end
+
+-- Professions this character has, by name.
+local function MyProfessions()
+  local have = {}
+  if GetProfessions then
+    for _, idx in ipairs({ GetProfessions() }) do
+      if idx then
+        local name = GetProfessionInfo(idx)
+        if name then have[name] = true end
+      end
+    end
+  end
+  return have, GetProfessions ~= nil
+end
+
+-- Whether the macro suits this character's class, race and professions.
+function L.Fits(m)
   local _, class = UnitClass("player")
+  local _, race = UnitRace("player")
+  if m.class and m.class ~= class then return false end
+  if m.race and m.race ~= race then return false end
+  if m.profession then
+    local have, canCheck = MyProfessions()
+    if canCheck and not have[m.profession] then return false end
+  end
+  return true
+end
+
+-- Macros sorted by category, then order, then name. Only the ones that
+-- fit this character unless showAll.
+function L.Entries(showAll)
   local list = {}
   for _, m in ipairs(L.macros) do
-    if not m.class or m.class == class then list[#list + 1] = m end
+    if showAll or L.Fits(m) then list[#list + 1] = m end
   end
   table.sort(list, function(a, b)
     local ca, cb = CATEGORY_RANK[a.category], CATEGORY_RANK[b.category]
