@@ -7,9 +7,15 @@ local L = ns.MacroLibrary
 -- Fishing ----------------------------------------------------------------------
 
 L.Add({ name = "Fish", category = "fishing", profession = "Fishing", order = 10, icon = "Fishing",
-  modifiers = { "Shift: apply a Shiny Bauble lure to the pole" },
-  desc = "Equips your fishing pole if needed, then fishes.",
-  body = "#showtooltip Fishing\n/equip [noequipped:Fishing Poles] {FISHINGPOLE}\n/use [mod:shift] Shiny Bauble\n/use [mod:shift] 16\n/cast [nomod] Fishing" })
+  tags = { "controller", "gear" },
+  modifiers = { "In combat: swaps straight back to your weapons" },
+  desc = "One button fishing: the first press equips your pole, the next ones fish. Agentcraft puts your weapons back when you stop.",
+  body = "#showtooltip Fishing\n/equip [combat] {MAINHAND}\n/equip [combat] {OFFHAND?}\n/stopmacro [combat]\n/equip [noequipped:{POLETYPE}] {FISHINGPOLE}\n/cast [equipped:{POLETYPE}] Fishing" })
+
+L.Add({ name = "Lure", category = "fishing", profession = "Fishing", order = 15, icon = "Shiny Bauble",
+  iconFile = "INV_Misc_Orb_03", tags = { "consumables" },
+  desc = "Puts a Shiny Bauble on your fishing pole (+25 Fishing for 10 minutes). Equip the pole first.",
+  body = "#showtooltip Shiny Bauble\n/use Shiny Bauble\n/use 16" })
 
 L.Add({ name = "Weapons", category = "fishing", profession = "Fishing", tags = { "gear" }, order = 20, iconFile = "INV_Sword_04",
   desc = "Swaps back to the weapons you wear now. Install it while they're equipped.",

@@ -191,8 +191,19 @@ end
 -- Placeholders ----------------------------------------------------------------------
 
 local function ItemName(id) return C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(id) end
-local function SubType(id) return C_Item and C_Item.GetItemInfoInstant and select(3, C_Item.GetItemInfoInstant(id)) end
-local function IsPole(id) return id and SubType(id) == "Fishing Poles" end
+
+-- Fishing poles are weapon class 2, subclass 20 on every client and
+-- language; the subtype text differs ("Fishing Poles" vs "Fishing Pole").
+function L.IsPole(id)
+  if not (id and C_Item and C_Item.GetItemInfoInstant) then return false end
+  local _, _, _, _, _, classID, subClassID = C_Item.GetItemInfoInstant(id)
+  return classID == 2 and subClassID == 20
+end
+local IsPole = L.IsPole
+
+local function PoleSubType(id)
+  return select(3, C_Item.GetItemInfoInstant(id))
+end
 
 local function BagItemIDs()
   local ids, seen = {}, {}
@@ -205,18 +216,26 @@ local function BagItemIDs()
   return ids
 end
 
--- Best food or drink you can use: highest required level.
-local function BestConsumable(spellNames)
-  local best, bestLevel
-  local level = UnitLevel("player")
-  for _, id in ipairs(BagItemIDs()) do
-    local spell = C_Item.GetItemSpell and C_Item.GetItemSpell(id)
-    if spell and spellNames[spell] then
-      local minLevel = select(5, C_Item.GetItemInfo(id)) or 0
-      if minLevel <= level and (not bestLevel or minLevel > bestLevel) then best, bestLevel = id, minLevel end
-    end
-  end
-  return best and ItemName(best)
+-- Best food or drink you can use (the ActionBars module knows how to spot them).
+local function BestConsumable(kind)
+  local AB = ns.modules.actionbars
+  return AB and AB.BestConsumableName and AB.BestConsumableName(kind)
+end
+
+-- The pole in your hands or bags: item ID.
+local function FindPole()
+  local main = GetInventoryItemID("player", 16)
+  if IsPole(main) then return main end
+  for _, id in ipairs(BagItemIDs()) do if IsPole(id) then return id end end
+end
+
+-- Weapons to return to after fishing: what you wear now, or what Agentcraft
+-- saw you wearing before you picked up the pole.
+local function Weapons()
+  local main, off = GetInventoryItemID("player", 16), GetInventoryItemID("player", 17)
+  if main and not IsPole(main) then return main, off end
+  local saved = ns.charDB and ns.charDB.weapons
+  if saved then return saved.main, saved.off end
 end
 
 L.placeholders = {
@@ -230,26 +249,34 @@ L.placeholders = {
     return nil, "no pet food in bags"
   end,
   FOOD = function()
-    return BestConsumable({ Food = true, Refreshment = true }) or nil, "no food in bags"
+    local name = BestConsumable("Food")
+    if name then return name end
+    return nil, "no food in bags"
   end,
   DRINK = function()
-    return BestConsumable({ Drink = true, Refreshment = true }) or nil, "no drink in bags"
+    local name = BestConsumable("Drink")
+    if name then return name end
+    return nil, "no drink in bags"
   end,
   FISHINGPOLE = function()
-    local main = GetInventoryItemID("player", 16)
-    if IsPole(main) then return ItemName(main) end
-    for _, id in ipairs(BagItemIDs()) do if IsPole(id) then return ItemName(id) end end
+    local id = FindPole()
+    if id then return ItemName(id) end
+    return nil, "no fishing pole"
+  end,
+  -- The pole's type as the client spells it, for [equipped:...] conditions.
+  POLETYPE = function()
+    local id = FindPole()
+    if id then return PoleSubType(id) end
     return nil, "no fishing pole"
   end,
   MAINHAND = function()
-    local id = GetInventoryItemID("player", 16)
-    if not id then return nil, "no main-hand weapon" end
-    if IsPole(id) then return nil, "unequip the fishing pole" end
-    return ItemName(id)
+    local main = Weapons()
+    if main then return ItemName(main) end
+    return nil, "equip your weapon once"
   end,
   OFFHAND = function()
-    local id = GetInventoryItemID("player", 17)
-    return id and ItemName(id) or nil
+    local _, off = Weapons()
+    return off and ItemName(off) or nil
   end,
 }
 

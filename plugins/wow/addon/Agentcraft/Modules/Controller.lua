@@ -107,6 +107,7 @@ M.layouts = {
         ["LT+RT B"] = { "First Aid" },
         ["LT+RT Up"] = { "Alchemy", "Blacksmithing", "Leatherworking", "Tailoring", "Enchanting" },
         ["LT+RT Left"] = { "Disenchant", "Skinning" },
+        ["LT+RT Right"] = { macro = "Lure" },
         ["LT+RT Down"] = { macro = "SellGrays" },
       },
     },

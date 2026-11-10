@@ -154,6 +154,8 @@ local GetItemInfoCompat = (C_Item and C_Item.GetItemInfo) or GetItemInfo
 
 local function ItemInfo(id)
   local name, _, _, _, minLevel = GetItemInfoCompat(id)
+  -- GetItemInfo returns nothing for items not cached yet; the name lookup still works.
+  if not name and C_Item and C_Item.GetItemNameByID then name = C_Item.GetItemNameByID(id) end
   return name, minLevel or 0
 end
 
@@ -182,13 +184,32 @@ local function BagItems()
   return byName, list
 end
 
+-- "Food", "Drink", "Both" or nil. The item's spell name says so on some
+-- clients; WoW Forever doesn't report it, so fall back to the tooltip text.
+local function ConsumableKind(id)
+  local spell = ItemSpell(id)
+  if spell == "Food" or spell == "Drink" then return spell end
+  if spell == "Refreshment" then return "Both" end
+  if C_TooltipInfo and C_TooltipInfo.GetItemByID then
+    local ok, data = pcall(C_TooltipInfo.GetItemByID, id)
+    if ok and data and data.lines then
+      for _, l in ipairs(data.lines) do
+        local t = type(l.leftText) == "string" and l.leftText:lower() or ""
+        if t:find("while eating and drinking") then return "Both" end
+        if t:find("while eating") then return "Food" end
+        if t:find("while drinking") then return "Drink" end
+      end
+    end
+  end
+end
+
 -- Best food/drink you carry: highest required level you can use.
-local function BestConsumable(list, spellName)
+local function BestConsumable(list, kind)
   local best, bestLevel
   local level = UnitLevel("player")
   for _, id in ipairs(list) do
-    local spell = ItemSpell(id)
-    if spell == spellName or spell == "Refreshment" then
+    local k = ConsumableKind(id)
+    if k == kind or k == "Both" then
       local _, minLevel = ItemInfo(id)
       if minLevel <= level and (not bestLevel or minLevel > bestLevel) then
         best, bestLevel = id, minLevel
@@ -215,6 +236,13 @@ end
 function M.ResolveUtilityItem(entry)
   local bags, list = BagItems()
   return ResolveUtility(entry, bags, list)
+end
+
+-- For other modules: name of the best "Food" or "Drink" in your bags, or nil.
+function M.BestConsumableName(kind)
+  local _, list = BagItems()
+  local id = BestConsumable(list, kind)
+  return id and ItemInfo(id) or nil
 end
 
 -- For other modules: known spell name -> highest-rank spell ID.
