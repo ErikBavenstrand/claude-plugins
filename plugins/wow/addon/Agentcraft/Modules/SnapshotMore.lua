@@ -380,6 +380,43 @@ M.AddSection("controller", function()
     return info
   end
 
+  -- Controller action bars (Blizzard_GamepadActionBars). Each page has four
+  -- bars (Top, Left = left shoulder/trigger, Right = right shoulder/trigger,
+  -- Bottom), each with a D-pad diamond and a face-button diamond: 32
+  -- positions numbered as in ActionBindingUtil.lua. Actions live in
+  -- dedicated action slots that Blizzard's util maps from page + position.
+  local Util = GamepadActionBarBindingUtil
+  local K = Constants and Constants.GamepadActionBarConstants
+  if Util and Util.GetGamepadStorageSlotIndexFromPageAndPageUnitSlotID and C_GamepadUI then
+    local BARS = { "Top", "Left", "Right", "Bottom" }
+    local DPAD = { "D-pad left", "D-pad up", "D-pad right", "D-pad down" }
+    local FACE = { "X/Square (face left)", "Y/Triangle (face up)", "B/Circle (face right)", "A/Cross (face down)" }
+    local pages = {}
+    for page = 1, (K and K.NUM_STANDARD_PAGES_PER_GAMEPAD_ACTION_BAR_PAGE_UNIT) or 3 do
+      local p = {}
+      for id = 1, 32 do
+        local bar = BARS[math.floor((id - 1) / 8) + 1]
+        local inBar = (id - 1) % 8
+        local button = (inBar < 4 and DPAD or FACE)[(inBar % 4) + 1]
+        local label = string.format("%s bar: %s", bar, button)
+        if Util.IsReservedPageUnitSlotID and Util.IsReservedPageUnitSlotID(id) then
+          if page == 1 then p[label] = "fixed by the controller UI" end
+        else
+          local ok, index = pcall(Util.GetGamepadStorageSlotIndexFromPageAndPageUnitSlotID, page, id)
+          if ok and index then
+            local d = ns.UI and ns.UI.DescribeSlot and ns.UI.DescribeSlot(index)
+            if d and d.name and d.name ~= "Empty slot" then p[label] = d.name .. " (action slot " .. index .. ")" end
+          end
+        end
+      end
+      pages["page " .. page] = p
+    end
+    out.gamepadBars = pages
+    out.gamepadFirstActionSlot = Try(C_GamepadUI.GetFirstGamepadActionStorageSlotIndex)
+  else
+    out.gamepadBars = "controller action bars not loaded (turn on the Gamepad UI)"
+  end
+
   out.clickTargets = {}
   for key, label in pairs(out.current) do
     local name = label:match("^CLICK ([^:]+):")
