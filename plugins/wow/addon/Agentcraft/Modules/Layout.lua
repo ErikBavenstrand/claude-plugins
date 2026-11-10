@@ -32,7 +32,8 @@ ns.Layout = L
 
 L.keyboard = {
   HUNTER = {
-    -- Bar 1: ranged rotation on Q E R T and 1 2 3 4, melee and escape on F G C V.
+    -- Each row of four keys is one family, so you learn rows, not single keys.
+    -- Bar 1: Q E R T rotation, F G C V melee, 1 2 3 4 pull and shots.
     [1] = {
       { macro = "Arcane", "Arcane Shot" },          -- Q  (also Auto Shot + pet attack)
       { macro = "Pull", "Serpent Sting" },          -- E  (also pet attack)
@@ -42,25 +43,26 @@ L.keyboard = {
       { "Mongoose Bite" },                          -- G
       { "Disengage" },                              -- C
       { "Wing Clip" },                              -- V
-      { "Multi-Shot" },                             -- 1
-      { "Explosive Trap", "Immolation Trap" },      -- 2  damage trap
+      { macro = "Mark", "Hunter's Mark" },          -- 1  opener (also pet attack)
+      { "Multi-Shot" },                             -- 2
       { "Concussive Shot" },                        -- 3
-      { macro = "Mark", "Hunter's Mark" },          -- 4  (also pet attack)
+      { "Explosive Trap", "Immolation Trap" },      -- 4  damage trap
     },
-    -- Bar 2 (Shift): aspects as plain keys, pet heal, cooldowns, crowd control.
+    -- Bar 2 (Shift): Q E R T cooldowns and pet, F G C V crowd control and
+    -- escape, 1 2 3 4 aspects. Situational spells go to the side bars.
     [2] = {
-      { "Aspect of the Hawk" },                     -- Shift+Q
-      { "Aspect of the Cheetah" },                  -- Shift+E
-      { "Mend Pet" },                               -- Shift+R
-      { "Rapid Fire" },                             -- Shift+T
+      { "Mend Pet" },                               -- Shift+Q
+      { "Bestial Wrath", "Deterrence", "Trueshot Aura" },   -- Shift+E  build cooldown
+      { "Rapid Fire" },                             -- Shift+R
+      { "Intimidation", "Counterattack", "Scatter Shot" },  -- Shift+T  build control
       { "Freezing Trap" },                          -- Shift+F
       { "Frost Trap" },                             -- Shift+G
       { racial = true },                            -- Shift+C
       { "Feign Death" },                            -- Shift+V
-      { "Intimidation", "Counterattack", "Scatter Shot" },  -- Shift+1  build control
-      { "Bestial Wrath", "Deterrence", "Trueshot Aura" },   -- Shift+2  build cooldown
-      { "Aspect of the Monkey" },                   -- Shift+3
-      { "Scare Beast" },                            -- Shift+4
+      { "Aspect of the Hawk" },                     -- Shift+1
+      { "Aspect of the Monkey" },                   -- Shift+2
+      { "Aspect of the Cheetah" },                  -- Shift+3
+      { "Aspect of the Pack" },                     -- Shift+4
     },
   },
 }
@@ -80,10 +82,11 @@ L.controller = {
         ["RT X"] = { macro = "Pull", "Serpent Sting" },
         ["RT B"] = { "Aimed Shot" },
         ["RT Y"] = { "Summon Hawk", "Sniper Shot" },
-        ["RT Up"] = { "Multi-Shot" },
-        ["RT Down"] = { "Explosive Trap", "Immolation Trap" },
+        -- RT D-pad mirrors keyboard 1 2 3 4: Mark up, Multi right, Concussive left, trap down.
+        ["RT Up"] = { macro = "Mark", "Hunter's Mark" },
+        ["RT Right"] = { "Multi-Shot" },
         ["RT Left"] = { "Concussive Shot" },
-        ["RT Right"] = { macro = "Mark", "Hunter's Mark" },
+        ["RT Down"] = { "Explosive Trap", "Immolation Trap" },
         ["LT A"] = { "Raptor Strike" },
         ["LT X"] = { "Mongoose Bite" },
         ["LT B"] = { "Disengage" },
