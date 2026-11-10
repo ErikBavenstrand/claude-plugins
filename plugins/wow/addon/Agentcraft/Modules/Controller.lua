@@ -45,38 +45,44 @@ local RACIALS = { "War Stomp", "Berserking", "Blood Fury", "Will of the Forsaken
 M.layouts = {
   HUNTER = {
     pages = {
-      -- Page 1: combat. RT = ranged rotation, LT = melee and defensive,
-      -- Top D-pad = aspects radial, trap, racial, eat, LT+RT = situational.
+      -- Page 1: combat, for any build (Beast Mastery, Marksmanship, Survival).
+      --   RT    = ranged rotation (most pressed; face buttons keep the left thumb on the stick)
+      --   LT    = melee, defensive and build cooldowns
+      --   Top   = D-pad things used standing still: aspects radial, freezing trap, racial, eat
+      --   LT+RT = crowd control and situational shots
+      -- Each button lists spells best-first. Buttons are filled in PRIORITY order
+      -- and a spell already on the page is skipped, so one layout adapts to the
+      -- build: e.g. BM before Summon Hawk gets Aimed Shot on RT B and Multi-Shot on RT Y.
       [1] = {
         title = "Combat",
         ["RT A"] = { "Arcane Shot" },
         ["RT X"] = { "Serpent Sting" },
-        ["RT Y"] = { "Hunter's Mark" },
-        ["RT B"] = { "Aimed Shot" },
-        ["RT Up"] = { "Multi-Shot" },
+        ["RT B"] = { "Summon Hawk", "Sniper Shot", "Aimed Shot" },   -- build signature shot
+        ["RT Y"] = { "Aimed Shot", "Multi-Shot" },
+        ["RT Up"] = { "Hunter's Mark" },                             -- once per target, before moving
+        ["RT Down"] = { "Explosive Trap", "Immolation Trap" },       -- damage trap (usable in combat in Forever)
         ["RT Left"] = { "Concussive Shot" },
-        ["RT Right"] = { "Rapid Fire" },
-        ["RT Down"] = { "Volley" },
+        ["RT Right"] = { "Rapid Fire", "Multi-Shot", "Volley" },
         ["LT A"] = { "Raptor Strike" },
         ["LT X"] = { "Mongoose Bite" },
-        ["LT Y"] = { "Wing Clip" },
         ["LT B"] = { "Disengage" },
+        ["LT Y"] = { "Wing Clip" },
         ["LT Up"] = { "Mend Pet" },
-        ["LT Left"] = { "Intimidation" },
-        ["LT Right"] = { "Bestial Wrath" },
         ["LT Down"] = { "Feign Death" },
-        ["none Up"] = { flyout = 253, "Aspect of the Hawk" },
+        ["LT Left"] = { "Intimidation", "Counterattack", "Scatter Shot" },  -- build control button
+        ["LT Right"] = { "Bestial Wrath", "Deterrence", "Trueshot Aura" },  -- build cooldown
+        ["none Up"] = { flyout = 253, "Aspect of the Hawk" },        -- aspects radial
         ["none Left"] = { "Freezing Trap" },
         ["none Right"] = { racial = true },
         ["none Down"] = { macro = "Eat" },
-        ["LT+RT A"] = { "Immolation Trap" },
-        ["LT+RT X"] = { "Frost Trap" },
-        ["LT+RT B"] = { "Explosive Trap" },
+        ["LT+RT A"] = { "Frost Trap" },
+        ["LT+RT X"] = { "Wyvern Sting", "Scatter Shot" },
+        ["LT+RT B"] = { "Tranquilizing Shot" },
         ["LT+RT Y"] = { "Flare" },
         ["LT+RT Up"] = { "Scare Beast" },
+        ["LT+RT Down"] = { "Immolation Trap", "Volley" },
         ["LT+RT Left"] = { "Distracting Shot" },
-        ["LT+RT Right"] = { "Scatter Shot", "Tranquilizing Shot" },
-        ["LT+RT Down"] = { "Viper Sting", "Scorpid Sting" },
+        ["LT+RT Right"] = { "Viper Sting", "Scorpid Sting" },
       },
       -- Page 2: pet care, consumables, travel and professions.
       [2] = {
@@ -117,8 +123,8 @@ M.layouts = {
       ["L5"] = { macro = "Recall" },
       ["R4"] = { "Feign Death", "Disengage" },
       ["R5"] = { "Concussive Shot" },
-      ["LT+L4"] = { "Intimidation" },
-      ["LT+L5"] = { "Bestial Wrath" },
+      ["LT+L4"] = { "Intimidation", "Counterattack", "Scatter Shot" },
+      ["LT+L5"] = { "Bestial Wrath", "Deterrence", "Rapid Fire" },
       ["LT+R4"] = { "Freezing Trap" },
       ["LT+R5"] = { racial = true },
     },
@@ -191,7 +197,7 @@ function KnownID(name, known)
 end
 
 -- Returns a plan item: { kind, id, name, icon } or { missing = "label" }.
-function M.Resolve(entry, known)
+function M.Resolve(entry, known, used)
   if entry.flyout then
     local index, id, name, icon = FindFlyout(entry.flyout)
     if index then return { kind = "flyout", index = index, id = id, name = name .. " (radial)", icon = icon } end
@@ -216,9 +222,24 @@ function M.Resolve(entry, known)
   end
   for _, n in ipairs(entry) do
     local id = KnownID(n, known)
-    if id then return { kind = "spell", id = id, name = n } end
+    if id and not (used and used[id]) then return { kind = "spell", id = id, name = n } end
   end
   return { missing = entry[#entry] or "?" }
+end
+
+-- Fill order: rotation layer first, most comfortable buttons first.
+local LAYER_RANK = { RT = 1, LT = 2, none = 3, ["LT+RT"] = 4 }
+local BUTTON_RANK = { A = 1, X = 2, B = 3, Y = 4, Up = 5, Down = 6, Left = 7, Right = 8 }
+local function PriorityKeys(def)
+  local keys = {}
+  for key in pairs(def) do if key ~= "title" then keys[#keys + 1] = key end end
+  table.sort(keys, function(a, b)
+    local la, ba = a:match("^(%S+) (%S+)$")
+    local lb, bb = b:match("^(%S+) (%S+)$")
+    if LAYER_RANK[la] ~= LAYER_RANK[lb] then return LAYER_RANK[la] < LAYER_RANK[lb] end
+    return BUTTON_RANK[ba] < BUTTON_RANK[bb]
+  end)
+  return keys
 end
 
 local function Icon(p)
@@ -249,10 +270,13 @@ function M.Plan()
   local plan = { changes = 0, missing = 0 }
   for page, def in ipairs(layout.pages) do
     plan[page] = { title = def.title }
-    for key, entry in pairs(def) do
-      if key ~= "title" then
+    local used = {}
+    for _, key in ipairs(PriorityKeys(def)) do
+      local entry = def[key]
+      do
         local slotID = SlotID(key)
-        local item = M.Resolve(entry, known)
+        local item = M.Resolve(entry, known, used)
+        if item.kind == "spell" then used[item.id] = true end
         local slot = Storage(page, slotID)
         local state = "missing"
         if not item.missing and slot then
@@ -271,10 +295,12 @@ function M.Plan()
     end
   end
   plan.paddles = {}
+  local paddleUsed = {}
   for _, p in ipairs(PADDLE_ORDER) do
     local entry = layout.paddles and layout.paddles[p]
     if entry then
-      local item = M.Resolve(entry, known)
+      local item = M.Resolve(entry, known, paddleUsed)
+      if item.kind == "spell" then paddleUsed[item.id] = true end
       local binding = PaddleBinding(p)
       local current = GetBindingAction(binding)
       local want = item.missing and "" or (item.kind == "macro" and ("MACRO " .. item.name) or ("SPELL " .. item.name))
