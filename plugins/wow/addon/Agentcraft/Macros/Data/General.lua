@@ -54,3 +54,19 @@ L.Add({ name = "Hearth", category = "utility", tags = { "travel" }, order = 20, 
 L.Add({ name = "SellGrays", category = "utility", tags = { "vendor" }, order = 30, iconFile = "INV_Misc_Coin_02",
   desc = "Sells every grey item in your bags. Press it with a vendor window open.",
   body = "/run for b=0,4 do for s=1,C_Container.GetContainerNumSlots(b) do local i=C_Container.GetContainerItemInfo(b,s) if i and i.quality==0 and not i.hasNoValue then C_Container.UseContainerItem(b,s) end end end" })
+
+-- More utility macros. Sources: us.forums.blizzard.com/en/wow/t/hunter-macros-classic/306685,
+-- warcraft.wiki.gg Useful_macros.
+
+L.Add({ name = "Skull", category = "utility", tags = { "group" }, order = 40, iconFile = "INV_Misc_Bone_HumanSkull_01",
+  desc = "Puts a skull on your target so the group knows what to kill first.",
+  body = "/run SetRaidTarget(\"target\", 8)" })
+
+L.Add({ name = "MaxZoom", category = "utility", tags = { "camera" }, order = 50, iconFile = "INV_Misc_Spyglass_03",
+  untested = true,
+  desc = "Lets the camera zoom out further. Run once; the setting stays.",
+  body = "/console cameraDistanceMaxZoomFactor 2.6" })
+
+L.Add({ name = "QuietErrors", category = "utility", tags = { "interface" }, order = 60, iconFile = "INV_Misc_Note_02",
+  desc = "Clears the red error text in the middle of the screen. Add it to the end of spammy macros.",
+  body = "/run UIErrorsFrame:Clear()" })

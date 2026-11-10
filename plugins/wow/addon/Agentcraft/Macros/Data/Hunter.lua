@@ -69,3 +69,57 @@ L.Add({ name = "PetAttack", category = "pet", class = "HUNTER", order = 5, perCh
   iconFile = "Ability_GhoulFrenzy", tags = { "controller" },
   desc = "Sends your pet at your target. Made for a controller back button.",
   body = "/petattack [@target,harm,nodead]" })
+
+-- More hunter macros. Sources: warcrafttavern.com/forever/guides/hunter/ (Forever),
+-- warcrafttavern.com/wow-classic/guides/hunter-macros-tips (Classic),
+-- us.forums.blizzard.com/en/wow/t/hunter-macros-classic/306685, warcraft.wiki.gg Useful_macros/Hunter.
+
+L.Add({ name = "AutoShot", category = "combat", class = "HUNTER", order = 5, perCharacter = true,
+  icon = "Auto Shot", tags = { "rotation" },
+  desc = "Targets the nearest enemy if you have none (or a dead/friendly one) and starts Auto Shot without ever toggling it off.",
+  body = "#showtooltip Auto Shot\n/targetenemy [noexists][dead][help]\n/cast !Auto Shot" })
+
+L.Add({ name = "MarkMO", category = "combat", class = "HUNTER", order = 21, perCharacter = true,
+  icon = "Hunter's Mark", requires = { "Hunter's Mark" }, tags = { "opener", "group" },
+  desc = "Hunter's Mark on the enemy under your mouse, otherwise on your target.",
+  body = "#showtooltip Hunter's Mark\n/cast [@mouseover,harm,nodead][] Hunter's Mark" })
+
+L.Add({ name = "FDTrap", category = "combat", class = "HUNTER", order = 61, perCharacter = true,
+  icon = "Feign Death", requires = { "Feign Death", "Freezing Trap" }, tags = { "crowd control", "defensive" },
+  desc = "Press twice in combat: Feign Death to drop combat, then Freezing Trap. Your pet stops and comes back.",
+  body = "#showtooltip Freezing Trap\n/stopattack\n/petpassive\n/petfollow\n/cast Freezing Trap\n/cast [combat] Feign Death" })
+
+L.Add({ name = "Scatter", category = "combat", class = "HUNTER", order = 62, perCharacter = true,
+  icon = "Scatter Shot", requires = { "Scatter Shot" }, tags = { "crowd control" },
+  desc = "Scatter Shot on your target and pull your pet off it so the disorient isn't broken. Send the pet back in afterwards.",
+  body = "#showtooltip Scatter Shot\n/targetenemy [noexists][dead][help]\n/petstay [@pettarget,harm]\n/petpassive [@pettarget,harm]\n/cast Scatter Shot" })
+
+L.Add({ name = "EagleEye", category = "combat", class = "HUNTER", order = 80, perCharacter = true,
+  icon = "Eagle Eye", requires = { "Eagle Eye" }, tags = { "scouting" }, untested = true,
+  desc = "Eagle Eye where your mouse points; pressing again doesn't snap the view back.",
+  body = "#showtooltip Eagle Eye\n/cast [@cursor] !Eagle Eye" })
+
+L.Add({ name = "Flare", category = "combat", class = "HUNTER", order = 81, perCharacter = true,
+  icon = "Flare", requires = { "Flare" }, tags = { "group", "stealth" }, untested = true,
+  desc = "Flare where your mouse points, without the targeting circle. Reveals stealthed enemies.",
+  body = "#showtooltip Flare\n/cast [@cursor] Flare" })
+
+L.Add({ name = "Volley", category = "combat", class = "HUNTER", order = 82, perCharacter = true,
+  icon = "Volley", requires = { "Volley" }, tags = { "aoe" }, untested = true,
+  desc = "Volley where your mouse points, without the targeting circle.",
+  body = "#showtooltip Volley\n/cast [@cursor] Volley" })
+
+L.Add({ name = "ScareMO", category = "combat", class = "HUNTER", order = 83, perCharacter = true,
+  icon = "Scare Beast", requires = { "Scare Beast" }, tags = { "crowd control" },
+  desc = "Scare Beast on the beast under your mouse, otherwise on your target, so you keep your current target.",
+  body = "#showtooltip Scare Beast\n/cast [@mouseover,harm,nodead][] Scare Beast" })
+
+L.Add({ name = "PetToggle", category = "pet", class = "HUNTER", order = 6, perCharacter = true,
+  iconFile = "Ability_Hunter_BeastCall", tags = { "controller" },
+  desc = "One button for your pet: attacks your target if it's idle, comes back if it's already fighting.",
+  body = "/petfollow [@pettarget,exists]\n/petattack [@pettarget,noexists]" })
+
+L.Add({ name = "FeedMend", category = "pet", class = "HUNTER", order = 25, perCharacter = true,
+  icon = "Mend Pet", requires = { "Feed Pet", "Mend Pet" }, tags = { "controller" },
+  desc = "Out of combat feeds your pet, in combat heals it. One button for pet upkeep.",
+  body = "#showtooltip\n/cast [nocombat] Feed Pet; [combat] Mend Pet\n/use [nocombat] {PETFOOD}" })
