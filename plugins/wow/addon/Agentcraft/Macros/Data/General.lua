@@ -70,3 +70,48 @@ L.Add({ name = "MaxZoom", category = "utility", tags = { "camera" }, order = 50,
 L.Add({ name = "QuietErrors", category = "utility", tags = { "interface" }, order = 60, iconFile = "INV_Misc_Note_02",
   desc = "Clears the red error text in the middle of the screen. Add it to the end of spammy macros.",
   body = "/run UIErrorsFrame:Clear()" })
+
+-- Everyday helpers, several aimed at controller / Steam Deck play (no mouse,
+-- awkward typing). Standard slash commands and long-standing UI functions.
+
+L.Add({ name = "Reload", category = "utility", tags = { "interface", "controller" }, order = 70, iconFile = "Spell_Holy_BorrowedTime",
+  desc = "Reloads the interface. Saves Agentcraft's snapshot and loads addon changes; handy without a keyboard.",
+  body = "/reload" })
+
+L.Add({ name = "Repair", category = "utility", tags = { "vendor" }, order = 31, iconFile = "INV_Hammer_20",
+  desc = "Repairs all your gear. Press it with a repair vendor's window open.",
+  body = "/run if CanMerchantRepair() then RepairAllItems() end" })
+
+L.Add({ name = "Chat", category = "utility", tags = { "controller", "interface" }, order = 71, iconFile = "INV_Letter_15",
+  untested = true,
+  desc = "Opens the chat input box, so the Steam Deck keyboard can type into it.",
+  body = "/run ChatFrame_OpenChat(\"\")" })
+
+L.Add({ name = "Map", category = "utility", tags = { "controller", "interface" }, order = 72, iconFile = "INV_Misc_Map_01",
+  untested = true,
+  desc = "Opens or closes the world map.",
+  body = "/run ToggleWorldMap()" })
+
+L.Add({ name = "Screenshot", category = "utility", tags = { "controller", "interface" }, order = 73, iconFile = "INV_Misc_Spyglass_02",
+  desc = "Takes a screenshot (saved in the game's Screenshots folder).",
+  body = "/run Screenshot()" })
+
+L.Add({ name = "Focus", category = "utility", tags = { "group", "controller" }, order = 41, iconFile = "Ability_Hunter_SniperShot",
+  desc = "Makes the enemy under your mouse (or your target) your focus, to keep an eye on it or mark it later.",
+  body = "/focus [@mouseover,exists][]" })
+
+L.Add({ name = "Assist", category = "utility", tags = { "group", "controller" }, order = 42, iconFile = "Ability_Hunter_MarkedForDeath",
+  desc = "Targets what your focus (or your current friendly target) is attacking, then starts Auto Shot if you're a hunter.",
+  body = "/assist [@focus,exists][]\n/cast [harm] !Auto Shot" })
+
+L.Add({ name = "Follow", category = "utility", tags = { "group", "travel", "controller" }, order = 43, iconFile = "Ability_Tracking",
+  desc = "Follows your target, for long runs with a friend.",
+  body = "/follow" })
+
+L.Add({ name = "ReadyCheck", category = "utility", tags = { "group" }, order = 44, iconFile = "INV_Misc_Note_04",
+  desc = "Starts a ready check in your group.",
+  body = "/readycheck" })
+
+L.Add({ name = "Logout", category = "utility", tags = { "controller", "interface" }, order = 74, iconFile = "Spell_Nature_Sleep",
+  desc = "Logs out (camps) without opening the menu. Saves Agentcraft's snapshot.",
+  body = "/camp" })
