@@ -354,6 +354,52 @@ M.AddSection("controller", function()
     end
   end
   out.note = "current = what each button does right now, including the controller UI's override bindings"
+
+  -- The controller UI routes buttons to click frames. Describe those frames
+  -- and every action button whose hotkey shows a controller glyph, so the
+  -- button -> action slot -> spell chain can be followed.
+  local function FrameInfo(f)
+    local info = { frame = f:GetName(), parent = f:GetParent() and f:GetParent():GetName(), shown = f:IsShown() or nil }
+    for _, a in ipairs({ "type", "action", "spell", "macro", "item", "clickbutton", "function", "binding", "actionpage" }) do
+      local ok, v = pcall(f.GetAttribute, f, a)
+      if ok and v ~= nil then
+        info[a] = (type(v) == "table" and v.GetName and (v:GetName() or "unnamed frame")) or tostring(v)
+      end
+    end
+    local slot = f.action
+    if not slot and f.CalculateAction then
+      local ok, v = pcall(f.CalculateAction, f)
+      if ok then slot = v end
+    end
+    if type(slot) == "number" and slot > 0 then
+      info.slot = slot
+      local d = ns.UI and ns.UI.DescribeSlot and ns.UI.DescribeSlot(slot)
+      info.slotHolds = d and d.name
+    end
+    if f.HotKey and f.HotKey.GetText then info.hotkey = f.HotKey:GetText() end
+    return info
+  end
+
+  out.clickTargets = {}
+  for key, label in pairs(out.current) do
+    local name = label:match("^CLICK ([^:]+):")
+    local f = name and _G[name]
+    if f and not out.clickTargets[name] then out.clickTargets[name] = FrameInfo(f) end
+  end
+
+  out.padButtons = {}
+  local f = EnumerateFrames()
+  local scanned = 0
+  while f and scanned < 20000 do
+    scanned = scanned + 1
+    if f.HotKey and f.HotKey.GetText and (f.action or f.CalculateAction) then
+      local ok, text = pcall(f.HotKey.GetText, f.HotKey)
+      if ok and type(text) == "string" and (text:find("|A") or text:find("|T") or text:find("PAD")) then
+        if #out.padButtons < 120 then out.padButtons[#out.padButtons + 1] = FrameInfo(f) end
+      end
+    end
+    f = EnumerateFrames(f)
+  end
   return out
 end)
 
