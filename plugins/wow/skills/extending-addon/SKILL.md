@@ -16,12 +16,13 @@ The addon source is in `${CLAUDE_PLUGIN_ROOT}/addon/Agentcraft`. Edit the copy t
 | `UI/Widgets.lua` | Shared look: `UI.Slot`, `UI.Header`, `UI.Button`, `UI.Text`, `UI.Swatch`, `UI.DescribeCommand` |
 | `UI/Window.lua` | The `/ac` window: sidebar from registered pages, header, footer buttons, auto-refresh |
 | `UI/Settings.lua` | Module switches, tool buttons, log |
-| `Modules/ActionBars.lua` | Fills bars from per-class profiles (`M.profiles.<CLASS>`) and the shared `M.utility` item bar |
+| `Modules/Layout.lua` | One role-based layout per class (`rotation`, `melee`, `stationary`, `situational`, `paddles`, `controllerPage2`), mapped to keyboard keys and controller buttons. Change a class layout here; both devices follow. Its header lists the rules: one permanent home per spell, alternatives only for either-or talents or same-role upgrades, no spell in two homes |
+| `Modules/ActionBars.lua` | Fills keyboard bars 1-2 from `Layout.lua` (or `M.profiles.<CLASS>` for classes without one), the shared `M.utility` Alt bar, and the side bars |
 | `Modules/Keybinds.lua` | One key layout for bars 1-3 and the pet bar |
 | `Modules/Snapshot.lua` | Writes the character state to SavedVariables. Skips saves while the client reports an empty character. Exposes `M.AddSection`, `M.SetCached`, `M.On` and `M.util` |
 | `Modules/SnapshotMore.lua` | Sections readable at any time. Add one with `M.AddSection(name, fn)` |
 | `Modules/SnapshotCached.lua` | Data only readable with a window open or after a server reply. Store it with `M.SetCached(name, table)`, triggered from `M.On(event, fn)` |
-| `Modules/Controller.lua` | Fills the native Gamepad UI bars (3 pages; Top/Left LT/Right RT/Bottom LT+RT; D-pad and face diamonds) and binds Steam Deck back buttons (F13-F16, plus LT layer) from `M.layouts.<CLASS>`. Keys look like `"RT A"` or `"none Up"`. Its header explains the Gamepad UI rules (fixed Top face buttons, flyouts as radials, Blizzard's pet radials) |
+| `Modules/Controller.lua` | Fills the native Gamepad UI bars (3 pages; Top/Left LT/Right RT/Bottom LT+RT; D-pad and face diamonds) and binds Steam Deck back buttons (F13-F16, plus LT layer) from `Layout.lua`. Holds the entry resolver (spells, flyouts, macros, items, racials) that ActionBars reuses. Its header explains the Gamepad UI rules (fixed Top face buttons, flyouts as radials, Blizzard's pet radials) |
 | `Macros/Library.lua` | Macro library core: categories, `L.Add`, placeholders (`{PETFOOD}`, `{FOOD}`, `{DRINK}`, `{FISHINGPOLE}`, `{MAINHAND}`, `{OFFHAND?}`), install state, install, remove and pick up. Its header lists every macro field and the macro conventions |
 | `Macros/Data/*.lua` | Macro definitions: one file per class, plus `General.lua` and `Racial.lua`. Add a macro with `L.Add({...})`; add a new file to the TOC above `Macros\Page.lua` |
 | `Macros/Page.lua` | Library page: "For you"/"Everything" switch, search, tag chips, macro cards with tag pills, detail panel |

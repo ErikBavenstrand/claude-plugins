@@ -42,95 +42,6 @@ end
 local RACIALS = { "War Stomp", "Berserking", "Blood Fury", "Will of the Forsaken", "Stoneform",
   "Shadowmeld", "Escape Artist", "Perception" }
 
-M.layouts = {
-  HUNTER = {
-    pages = {
-      -- Page 1: combat, for any build (Beast Mastery, Marksmanship, Survival).
-      --   RT    = ranged rotation (most pressed; face buttons keep the left thumb on the stick)
-      --   LT    = melee, defensive and build cooldowns
-      --   Top   = D-pad things used standing still: aspects radial, freezing trap, racial, eat
-      --   LT+RT = crowd control and situational shots
-      -- Each button lists spells best-first. Buttons are filled in PRIORITY order
-      -- and a spell already on the page is skipped, so one layout adapts to the
-      -- build: e.g. BM before Summon Hawk gets Aimed Shot on RT B and Multi-Shot on RT Y.
-      [1] = {
-        title = "Combat",
-        ["RT A"] = { "Arcane Shot" },
-        ["RT X"] = { "Serpent Sting" },
-        ["RT B"] = { "Summon Hawk", "Sniper Shot", "Aimed Shot" },   -- build signature shot
-        ["RT Y"] = { "Aimed Shot", "Multi-Shot" },
-        ["RT Up"] = { "Hunter's Mark" },                             -- once per target, before moving
-        ["RT Down"] = { "Explosive Trap", "Immolation Trap" },       -- damage trap (usable in combat in Forever)
-        ["RT Left"] = { "Concussive Shot" },
-        ["RT Right"] = { "Rapid Fire", "Multi-Shot", "Volley" },
-        ["LT A"] = { "Raptor Strike" },
-        ["LT X"] = { "Mongoose Bite" },
-        ["LT B"] = { "Disengage" },
-        ["LT Y"] = { "Wing Clip" },
-        ["LT Up"] = { "Mend Pet" },
-        ["LT Down"] = { "Feign Death" },
-        ["LT Left"] = { "Intimidation", "Counterattack", "Scatter Shot" },  -- build control button
-        ["LT Right"] = { "Bestial Wrath", "Deterrence", "Trueshot Aura" },  -- build cooldown
-        ["none Up"] = { flyout = 253, "Aspect of the Hawk" },        -- aspects radial
-        ["none Left"] = { "Freezing Trap" },
-        ["none Right"] = { racial = true },
-        ["none Down"] = { macro = "Eat" },
-        ["LT+RT A"] = { "Frost Trap" },
-        ["LT+RT X"] = { "Wyvern Sting", "Scatter Shot" },
-        ["LT+RT B"] = { "Tranquilizing Shot" },
-        ["LT+RT Y"] = { "Flare" },
-        ["LT+RT Up"] = { "Scare Beast" },
-        ["LT+RT Down"] = { "Immolation Trap", "Volley" },
-        ["LT+RT Left"] = { "Distracting Shot" },
-        ["LT+RT Right"] = { "Viper Sting", "Scorpid Sting" },
-      },
-      -- Page 2: pet care, consumables, travel and professions.
-      [2] = {
-        title = "Utility",
-        ["RT A"] = { "Revive Pet" },
-        ["RT X"] = { "Call Pet" },
-        ["RT Y"] = { "Dismiss Pet" },
-        ["RT B"] = { macro = "Feed" },
-        ["RT Up"] = { "Beast Lore" },
-        ["RT Left"] = { "Eyes of the Beast" },
-        ["RT Right"] = { "Tame Beast" },
-        ["RT Down"] = { "Beast Training" },
-        ["LT A"] = { utility = 2 },
-        ["LT X"] = { utility = 3 },
-        ["LT Y"] = { utility = 4 },
-        ["LT B"] = { utility = 11 },
-        ["LT Up"] = { utility = 1 },
-        ["LT Left"] = { utility = 5 },
-        ["LT Right"] = { utility = 6 },
-        ["LT Down"] = { utility = 7 },
-        ["none Up"] = { macro = "Hearth" },
-        ["none Left"] = { macro = "Fish" },
-        ["none Right"] = { macro = "Track" },
-        ["none Down"] = { macro = "Campfire" },
-        ["LT+RT A"] = { "Smelting" },
-        ["LT+RT X"] = { "Cooking" },
-        ["LT+RT Y"] = { "Engineering" },
-        ["LT+RT B"] = { "First Aid" },
-        ["LT+RT Up"] = { "Alchemy", "Blacksmithing", "Leatherworking", "Tailoring", "Enchanting" },
-        ["LT+RT Left"] = { "Disenchant", "Skinning" },
-        ["LT+RT Right"] = { macro = "Lure" },
-        ["LT+RT Down"] = { macro = "SellGrays" },
-      },
-    },
-    -- Back buttons: plain press and with LT held (LT emulates Shift).
-    paddles = {
-      ["L4"] = { macro = "PetAttack" },
-      ["L5"] = { macro = "Recall" },
-      ["R4"] = { "Feign Death", "Disengage" },
-      ["R5"] = { "Concussive Shot" },
-      ["LT+L4"] = { "Intimidation", "Counterattack", "Scatter Shot" },
-      ["LT+L5"] = { "Bestial Wrath", "Deterrence", "Rapid Fire" },
-      ["LT+R4"] = { "Freezing Trap" },
-      ["LT+R5"] = { racial = true },
-    },
-  },
-}
-
 local PADDLE_KEY = { L4 = "F13", L5 = "F14", R4 = "F15", R5 = "F16" }
 local PADDLE_ORDER = { "L4", "L5", "R4", "R5", "LT+L4", "LT+L5", "LT+R4", "LT+R5" }
 local function PaddleBinding(p)
@@ -143,9 +54,12 @@ end
 local function Util() return GamepadActionBarBindingUtil end
 local KnownID -- defined below
 
+-- The class layout lives in Layout.lua, shared with the keyboard bars.
 local function Layout()
   local _, class = UnitClass("player")
-  return M.layouts[class], class
+  local pages, paddles = ns.Layout and ns.Layout.ControllerPages(class)
+  if not pages then return nil, class end
+  return { pages = pages, paddles = paddles }, class
 end
 
 local function Known()
@@ -332,6 +246,19 @@ local function Place(slot, item)
   if GetCursorInfo() then PlaceAction(slot) end
   ClearCursor()
 end
+
+-- Whether an action slot already holds the resolved item.
+local function Same(slot, item)
+  if not item or item.missing then return false end
+  local t, id = GetActionInfo(slot)
+  return (item.kind == "spell" and t == "spell" and id == item.id)
+    or (item.kind == "item" and t == "item" and id == item.id)
+    or (item.kind == "flyout" and t == "flyout" and id == item.id)
+    or (item.kind == "macro" and t == "macro" and GetActionText(slot) == item.name)
+end
+
+-- Shared with the keyboard bars (ActionBars), which use the same layout entries.
+M.Place, M.Same, M.Icon, M.Known = Place, Same, Icon, Known
 
 local function ManagedSlots(plan)
   local slots = {}

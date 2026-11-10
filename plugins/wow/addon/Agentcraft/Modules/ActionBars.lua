@@ -22,48 +22,10 @@ local M = ns.RegisterModule("ActionBars", {
 local BAR_OFFSET = { 0, 60, 48 }
 local RIGHT_BAR, RIGHT_BAR_2 = 24, 36 -- slots 25-36 and 37-48
 
-M.profiles = {
-  -- Beast Mastery leveling, WoW Forever. Main source: Wowhead's Forever BM
-  -- leveling guide (patch 1.60.1, updated 2026-11-04), single-target
-  -- priority: Hunter's Mark > Serpent Sting > Summon Hawk > Arcane Shot
-  -- (only every third rotation once Hawk is talented) > Aimed Shot.
-  -- Extra buttons (Disengage, Intimidation, Bestial Wrath) come from the
-  -- Icy Veins Forever guide. Reach: Q E R T easiest, then 1 2 3 4, then
-  -- F G C V. Most-pressed spells go on the easiest keys.
-  HUNTER = {
-    -- Bar 1
-    {
-      "Serpent Sting",    -- Q   rotation 1 (after Mark)
-      "Summon Hawk",      -- E   rotation 2, keep 2 hawks up
-      "Arcane Shot",      -- R   rotation 3 (every third rotation with Hawk)
-      "Aimed Shot",       -- T   rotation 4
-      "Disengage",        -- F   drop threat / get out of melee
-      "Intimidation",     -- G   pet stun + threat
-      "Bestial Wrath",    -- C   cooldown for elites
-      "Rapid Fire",       -- V   cooldown for elites
-      "Hunter's Mark",    -- 1   opener, once per target
-      "Multi-Shot",       -- 2   groups
-      "Concussive Shot",  -- 3   slow / kite
-      "Mend Pet",         -- 4
-    },
-    -- Bar 2 (Shift)
-    {
-      "Aspect of the Hawk",    -- Shift+Q
-      "Aspect of the Cheetah", -- Shift+E
-      "Wing Clip",             -- Shift+R
-      "Feign Death",           -- Shift+T  escape
-      "Raptor Strike",         -- Shift+F
-      "Mongoose Bite",         -- Shift+G
-      "War Stomp",             -- Shift+C  (Tauren racial; skipped on other races)
-      "Volley",                -- Shift+V
-      "Freezing Trap",         -- Shift+1
-      "Frost Trap",            -- Shift+2
-      "Immolation Trap",       -- Shift+3
-      "Explosive Trap",        -- Shift+4
-    },
-    -- Bar 3 is the shared UTILITY bar below.
-  },
-}
+-- Per-class keyboard layouts for classes without a role layout in Layout.lua:
+--   M.profiles.<CLASS> = { { 12 spell names for bar 1 }, { 12 for bar 2 }, [3] = utility override }
+-- Classes with a role layout (Layout.lua) use it instead, shared with the controller.
+M.profiles = {}
 
 -- Bar 3 (Alt) for every class: items, picked from your bags/trinkets.
 -- Each entry is a list of item names, best first (the first one you carry
@@ -270,9 +232,34 @@ end
 local function PlaceSpell(slot, id) PickupSpellID(id); PlaceAction(slot); ClearCursor() end
 local function PlaceItem(slot, id) PickupItemID(id); if GetCursorInfo() then PlaceAction(slot) end; ClearCursor() end
 
+-- Bars 1-2 come from the shared role layout (Layout.lua) when the class has
+-- one, so keyboard and controller agree; otherwise from M.profiles.
+-- Returns { [1] = entries, [2] = entries, [3] = utility override }.
 local function Profile()
   local _, class = UnitClass("player")
-  return M.profiles[class], class
+  local bars = ns.Layout and ns.Layout.KeyboardBars(class)
+  local legacy = M.profiles[class]
+  if bars then
+    bars[3] = legacy and legacy[3]
+    return bars, class
+  end
+  if not legacy then return nil, class end
+  local out = { {}, {}, legacy[3] }
+  for bar = 1, 2 do
+    for i, name in pairs(legacy[bar] or {}) do out[bar][i] = { name } end
+  end
+  return out, class
+end
+
+-- Resolve a layout entry (spell names, flyout, macro, racial) with the
+-- controller module's resolver, which knows every entry form.
+local function ResolveEntry(entry, known)
+  local C = ns.modules.controller
+  if C and C.Resolve then return C.Resolve(entry, known) end
+  for _, n in ipairs(entry) do
+    if known[n] then return { kind = "spell", id = known[n], name = n } end
+  end
+  return { missing = entry[#entry] or "?" }
 end
 
 local function ManagedSlots()
@@ -288,7 +275,11 @@ end
 local function SideBars(profile, known)
   local used = {}
   for bar = 1, 2 do
-    for _, name in pairs(profile[bar] or {}) do used[name] = true end
+    for _, entry in pairs(profile[bar] or {}) do
+      for _, name in ipairs(entry) do used[name] = true end
+      local item = ResolveEntry(entry, known)
+      if item.name then used[item.name] = true end
+    end
   end
   local pet, other, tracking, prof = {}, {}, {}, {}
   for name in pairs(known) do
@@ -332,12 +323,15 @@ local function Apply()
   for _, slot in ipairs(ManagedSlots()) do ClearSlot(slot) end
 
   local missing = {}
+  local C = ns.modules.controller
   for bar = 1, 2 do
     for i = 1, 12 do
-      local name = profile[bar] and profile[bar][i]
-      if name then
-        if known[name] then PlaceSpell(BAR_OFFSET[bar] + i, known[name])
-        else table.insert(missing, name) end
+      local entry = profile[bar] and profile[bar][i]
+      if entry then
+        local item = ResolveEntry(entry, known)
+        if item.missing then table.insert(missing, item.missing)
+        elseif C and C.Place then C.Place(BAR_OFFSET[bar] + i, item)
+        elseif item.kind == "spell" then PlaceSpell(BAR_OFFSET[bar] + i, item.id) end
       end
     end
   end
@@ -396,10 +390,11 @@ local function Show()
   for bar = 1, 2 do
     print("|cffffd100Bar " .. bar .. (bar == 2 and " (Shift)" or "") .. "|r")
     for i = 1, 12 do
-      local name = profile[bar] and profile[bar][i]
-      if name then
-        local mark = known[name] and "" or " |cff888888(not learned)|r"
-        print("  " .. (bar == 2 and "Shift+" or "") .. KEY_LABELS[i] .. " -> " .. name .. mark)
+      local entry = profile[bar] and profile[bar][i]
+      if entry then
+        local item = ResolveEntry(entry, known)
+        local what = item.missing and ("|cff888888" .. item.missing .. " (not learned)|r") or item.name
+        print("  " .. (bar == 2 and "Shift+" or "") .. KEY_LABELS[i] .. " -> " .. what)
       end
     end
   end
@@ -442,8 +437,14 @@ function M.Plan()
     for i = 1, 12 do
       local e = { slot = row.first + i }
       if r <= 2 then
-        local name = profile[r] and profile[r][i]
-        if name then e.kind, e.id, e.name = "spell", known[name], name end
+        local entry = profile[r] and profile[r][i]
+        if entry then
+          local item = ResolveEntry(entry, known)
+          e.item = item
+          e.kind = item.kind or "spell"
+          e.id = item.id or (not item.missing and item.name) or nil
+          e.name = item.name or item.missing
+        end
       elseif r == 3 then
         local entry = utility[i]
         if entry then
@@ -455,8 +456,10 @@ function M.Plan()
         if name then e.kind, e.id, e.name = "spell", known[name], name end
       end
       local cur, curID = GetActionInfo(e.slot)
+      local C = ns.modules.controller
       if not e.kind then e.state = cur and "clear" or "empty"
       elseif not e.id then e.state = "missing"
+      elseif e.item and C and C.Same then e.state = C.Same(e.slot, e.item) and "same" or "new"
       elseif cur == e.kind and curID == e.id then e.state = "same"
       else e.state = "new" end
       if e.state == "new" or e.state == "clear" then plan.changes = plan.changes + 1 end
@@ -494,6 +497,11 @@ local function FillSlot(s, e, command)
     s:SetTip({ title = e.name, color = UI.RED,
       text = e.kind == "spell" and "Not learned yet. Placed here once you train it and apply again."
         or "None in your bags. Placed here once you carry one and apply again." })
+  elseif e.kind == "flyout" or e.kind == "macro" then
+    local C = ns.modules.controller
+    s:SetIcon(C and C.Icon and C.Icon(e.item) or UI.QUESTION)
+    if e.state == "new" then s:SetMark(UI.GREEN) end
+    s:SetTip({ title = e.name, text = e.state == "new" and "Placed here on apply." or nil })
   else
     local spell = e.kind == "spell" and e.id or nil
     local item = e.kind == "item" and e.id or nil
