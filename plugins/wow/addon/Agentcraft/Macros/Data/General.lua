@@ -10,7 +10,7 @@ L.Add({ name = "Fish", category = "fishing", profession = "Fishing", order = 10,
   tags = { "controller", "gear" },
   modifiers = { "In combat: swaps straight back to your weapons" },
   desc = "One button fishing: the first press equips your pole, the next ones fish. Agentcraft puts your weapons back when you stop.",
-  body = "#showtooltip Fishing\n/equip [combat] {MAINHAND}\n/equip [combat] {OFFHAND?}\n/stopmacro [combat]\n/equip [noequipped:{POLETYPE}] {FISHINGPOLE}\n/cast [equipped:{POLETYPE}] Fishing" })
+  body = "#showtooltip Fishing\n/equip [combat] {MAINHAND?}\n/equip [combat] {OFFHAND?}\n/stopmacro [combat]\n/equip [noequipped:{POLETYPE}] {FISHINGPOLE}\n/cast [equipped:{POLETYPE}] Fishing" })
 
 L.Add({ name = "Lure", category = "fishing", profession = "Fishing", order = 15, icon = "Shiny Bauble",
   iconFile = "INV_Misc_Orb_03", tags = { "consumables" },
@@ -43,9 +43,9 @@ L.Add({ name = "Dynamite", category = "professions", profession = "Engineering",
 -- Utility ----------------------------------------------------------------------
 
 L.Add({ name = "Eat", category = "utility", tags = { "consumables" }, order = 10, iconFile = "INV_Misc_Food_15",
-  modifiers = { "Shift: drink instead" },
-  desc = "Eats the best food you carry. Reinstall after you buy better food.",
-  body = "#showtooltip\n/use [mod:shift] {DRINK}; {FOOD}" })
+  modifiers = { "Shift (LT on a controller): drink instead, if you carry a drink" },
+  desc = "Eats the best food you carry. Reinstall (or Apply) after you buy better food or drink.",
+  body = "#showtooltip\n/use [mod:shift] {DRINK?}\n/use [nomod] {FOOD}" })
 
 L.Add({ name = "Hearth", category = "utility", tags = { "travel" }, order = 20, icon = "Hearthstone",
   desc = "Uses your Hearthstone, with its cooldown on the button.",

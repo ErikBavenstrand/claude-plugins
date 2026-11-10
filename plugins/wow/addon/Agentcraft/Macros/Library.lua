@@ -236,7 +236,21 @@ local function Weapons()
   if main and not IsPole(main) then return main, off end
   local saved = ns.charDB and ns.charDB.weapons
   if saved then return saved.main, saved.off end
+  -- Never seen: take the first main-hand weapon and off-hand item in your bags.
+  local main, off
+  for _, id in ipairs(BagItemIDs()) do
+    local _, _, _, equipLoc, _, classID = C_Item.GetItemInfoInstant(id)
+    if not main and classID == 2 and not IsPole(id) and (equipLoc == "INVTYPE_WEAPON"
+      or equipLoc == "INVTYPE_WEAPONMAINHAND" or equipLoc == "INVTYPE_2HWEAPON") then
+      main = id
+    elseif not off and (equipLoc == "INVTYPE_HOLDABLE" or equipLoc == "INVTYPE_SHIELD"
+      or equipLoc == "INVTYPE_WEAPONOFFHAND") then
+      off = id
+    end
+  end
+  return main, off
 end
+L.Weapons = Weapons
 
 L.placeholders = {
   PETFOOD = function()

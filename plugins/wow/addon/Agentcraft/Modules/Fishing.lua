@@ -35,9 +35,12 @@ local function RestoreIfIdle()
   if InCombatLockdown() or UnitChannelInfo("player") or (LootFrame and LootFrame:IsShown()) then return end
   if GetTime() - lastCast < (M.charDB.idleSeconds or 15) then return end
   local w = ns.charDB.weapons
-  if not w then return end
-  Equip(w.main, 16)
-  if w.off then Equip(w.off, 17) end
+  local main, off
+  if w then main, off = w.main, w.off
+  elseif ns.MacroLibrary and ns.MacroLibrary.Weapons then main, off = ns.MacroLibrary.Weapons() end
+  if not main then return end
+  Equip(main, 16)
+  if off then Equip(off, 17) end
 end
 
 local function Watch()
