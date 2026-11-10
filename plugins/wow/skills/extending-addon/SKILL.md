@@ -16,7 +16,7 @@ The addon source is in `${CLAUDE_PLUGIN_ROOT}/addon/Agentcraft`. Edit the copy t
 | `UI/Widgets.lua` | Shared look: `UI.Slot`, `UI.Header`, `UI.Button`, `UI.Text`, `UI.Swatch`, `UI.DescribeCommand` |
 | `UI/Window.lua` | The `/ac` window: sidebar from registered pages, header, footer buttons, auto-refresh |
 | `UI/Settings.lua` | Module switches, tool buttons, log |
-| `Modules/Layout.lua` | One role-based layout per class (`rotation`, `melee`, `stationary`, `situational`, `paddles`, `controllerPage2`), mapped to keyboard keys and controller buttons. Change a class layout here; both devices follow. Its header lists the rules: one permanent home per spell, alternatives only for either-or talents or same-role upgrades, no spell in two homes |
+| `Modules/Layout.lua` | Per-class layouts, one per device: `L.keyboard.<CLASS>` (bars 1-2, plain keybinds, no flyouts) and `L.controller.<CLASS>` (3 pages of `"RT A"`-style keys with radials, plus back buttons). Controller page 3 holds Steam Deck helpers and `{ overflow = true }` buttons that take every known spell without another controller home, so everything is reachable on the Deck. Its header lists the entry forms and the rules: one permanent home per spell, alternatives only for either-or talents or same-role upgrades, no spell in two homes |
 | `Modules/ActionBars.lua` | Fills keyboard bars 1-2 from `Layout.lua` (or `M.profiles.<CLASS>` for classes without one), the shared `M.utility` Alt bar, and the side bars |
 | `Modules/Keybinds.lua` | One key layout for bars 1-3 and the pet bar |
 | `Modules/Snapshot.lua` | Writes the character state to SavedVariables. Skips saves while the client reports an empty character. Exposes `M.AddSection`, `M.SetCached`, `M.On` and `M.util` |

@@ -182,20 +182,65 @@ local function Storage(page, slotID)
   return ok and index or nil
 end
 
+-- Spells never offered by the catch-all: always-on or handled by the UI.
+local OVERFLOW_SKIP = { ["Attack"] = true, ["Auto Shot"] = true, ["Shoot"] = true, ["Throw"] = true }
+
+-- Known spells with no controller home (and not inside a placed flyout),
+-- alphabetically, for the { overflow = true } buttons.
+local function OverflowSpells(pages, known)
+  local placed = {}
+  for _, def in ipairs(pages) do
+    for key, entry in pairs(def) do
+      if key ~= "title" and not entry.overflow then
+        local item = M.Resolve(entry, known)
+        if item.kind == "spell" then placed[item.id] = true end
+        if item.kind == "flyout" and GetFlyoutInfo then
+          local _, _, numSlots = GetFlyoutInfo(item.id)
+          for s = 1, numSlots or 0 do
+            local spellID = GetFlyoutSlotInfo(item.id, s)
+            if spellID then placed[spellID] = true end
+          end
+        end
+        -- A macro version counts as placing its spell.
+        if item.kind == "macro" and entry[1] then
+          local id = KnownID(entry[1], known)
+          if id then placed[id] = true end
+        end
+      end
+    end
+  end
+  local list = {}
+  for name, id in pairs(known) do
+    if not placed[id] and not OVERFLOW_SKIP[name] then list[#list + 1] = { name = name, id = id } end
+  end
+  table.sort(list, function(a, b) return a.name < b.name end)
+  return list
+end
+
 -- Full plan: plan[page][slotID] = { key, entry, item, slot, state }.
 function M.Plan()
   local layout, class = Layout()
   if not layout then return nil, class end
   local known = Known()
   local plan = { changes = 0, missing = 0 }
+  local overflow, nextOverflow = OverflowSpells(layout.pages, known), 1
   for page, def in ipairs(layout.pages) do
     plan[page] = { title = def.title }
     local used = {}
     for _, key in ipairs(PriorityKeys(def)) do
       local entry = def[key]
-      do
+      local item
+      if entry.overflow then
+        local spell = overflow[nextOverflow]
+        if spell then
+          nextOverflow = nextOverflow + 1
+          item = { kind = "spell", id = spell.id, name = spell.name }
+        end
+      else
+        item = M.Resolve(entry, known, used)
+      end
+      if item then
         local slotID = SlotID(key)
-        local item = M.Resolve(entry, known, used)
         if item.kind == "spell" then used[item.id] = true end
         local slot = Storage(page, slotID)
         local state = "missing"
@@ -214,6 +259,7 @@ function M.Plan()
       end
     end
   end
+  plan.unplaced = #overflow - (nextOverflow - 1)
   plan.paddles = {}
   local paddleUsed = {}
   for _, p in ipairs(PADDLE_ORDER) do
@@ -327,7 +373,7 @@ function M.Undo()
   local backup = M.charDB.backup
   if not backup then return ns.Print("nothing to undo.") end
   ClearCursor()
-  local plan = M.Plan() or { 1, 2 }
+  local plan = M.Plan() or { 1, 2, 3 }
   for _, slot in ipairs(ManagedSlots(plan)) do
     if HasAction(slot) then PickupAction(slot); ClearCursor() end
     local saved = backup.slots[slot]
@@ -470,14 +516,15 @@ local page = ns.RegisterPage({
     local p = page.plan
     if not p then return "" end
     local enabled = C_GamePad and C_GamePad.IsEnabled and C_GamePad.IsEnabled()
-    return string.format("%s%d to change|r  ·  |cffff5a4a%d waiting for spells|r%s",
+    return string.format("%s%d to change|r  ·  |cffff5a4a%d waiting for spells|r%s%s",
       p.changes > 0 and "|cff4cff4c" or "|cffaaaaaa", p.changes, p.missing,
+      (p.unplaced or 0) > 0 and ("  ·  |cffffd100" .. p.unplaced .. " spells have no button|r") or "  ·  |cff4cff4cevery spell reachable|r",
       enabled and "" or "  ·  |cffffd100Gamepad UI is off|r")
   end,
 
   actions = {
     { label = "Undo", fn = M.Undo, tooltip = "Put back the controller bars and back-button keys from before the last apply." },
-    { label = "Apply", fn = M.Apply, tooltip = "Fill controller pages 1-2 and bind the back-button keys. Your current layout is saved for undo." },
+    { label = "Apply", fn = M.Apply, tooltip = "Fill controller pages 1-3 and bind the back-button keys. Your current layout is saved for undo." },
   },
 })
 
