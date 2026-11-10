@@ -37,6 +37,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "${CLAUDE_PLUGIN_ROOT}/scrip
 | `questLog`, `completedQuests`, `quests` | Quests with objectives and progress; IDs of every turned-in quest |
 | `reputation`, `currencyPvp`, `buffs` | Standings; currencies, honor and PvP stats; active buffs |
 | `macros`, `bars`, `collections` | Macro text; action bar slots with keys; mounts, companions, equipment sets |
+| `controller` | Controller mode on/off, the connected pad, controller settings, and every pad button binding (`PADDUP`, `PAD1`, `PADLTRIGGER` and so on) with what it does |
 | `social`, `addons`, `apiProbe` | Friends, guild roster, group; installed addons; which APIs the client has |
 | `bank`, `mail`, `recipes`, `flightPaths`, `stable`, `auctions` | Saved when the user last opened that window; each has a `seen` time |
 | `playedTime`, `lockouts` | Asked from the server shortly after login |
@@ -60,5 +61,6 @@ If `overview` shows no snapshot, run the `installing-addon` skill.
 - Talents in WoW Forever use the modern trait tree, so they appear under `talents` → `Trait tree`.
 - Health, mana and some combat values show as `null`. The client marks them secret and addons can't read them.
 - Names come in the client's language, and realm names in folder paths can differ from the in-game realm name.
+- Default controller bindings never reach `bindings-cache.wtf`; the `binds` command shows only keys the user changed. Read the snapshot's `controller` section for the full pad layout.
 - The combat log exists only while the user has `/combatlog` on. It stops on logout.
 - On macOS or Linux the script needs PowerShell 7 (`pwsh`). Without it, read the files directly: snapshots are in `WTF/Account/<account>/SavedVariables/Agentcraft.lua` under `AgentcraftDB.modules.Snapshot`.

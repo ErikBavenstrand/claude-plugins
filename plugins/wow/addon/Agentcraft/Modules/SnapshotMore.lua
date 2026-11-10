@@ -298,6 +298,45 @@ M.AddSection("addons", function()
   return list
 end)
 
+-- Controller: whether controller mode is on, the connected pad, its settings
+-- and every binding on a pad button. Default controller bindings are never
+-- written to bindings-cache.wtf until changed, so only the game knows them.
+M.AddSection("controller", function()
+  local out = { settings = {}, bindings = {} }
+  local G = C_GamePad
+  if G then
+    out.enabled = Try(G.IsEnabled)
+    local id = G.GetActiveDeviceID and G.GetActiveDeviceID()
+    out.activeDeviceID = id
+    if id and G.GetDeviceMappedState then
+      local ok, st = pcall(G.GetDeviceMappedState, id)
+      if ok and type(st) == "table" then out.device = Flat(st) end
+    end
+  end
+  for _, cv in ipairs({ "GamePadEnable", "GamePadEmulateShift", "GamePadEmulateCtrl", "GamePadEmulateAlt",
+      "GamePadEmulateEsc", "GamePadCursorLeftClick", "GamePadCursorRightClick", "GamePadCursorAutoEnable",
+      "GamePadCameraYawSpeed", "GamePadCameraPitchSpeed", "GamePadFaceMovementMaxAngle", "GamePadTouchCursorEnable",
+      "GamePadVibrationStrength", "SoftTargetEnemy", "SoftTargetFriend", "SoftTargetInteract" }) do
+    local ok, v = pcall(C_CVar.GetCVar, cv)
+    if ok and v then out.settings[cv] = v end
+  end
+  -- GetBinding(i) returns command, category, key1, key2, ...
+  for i = 1, GetNumBindings() do
+    local r = { GetBinding(i) }
+    local command = r[1]
+    for k = 3, #r do
+      local key = r[k]
+      if type(key) == "string" and key:find("PAD") then
+        local label = _G["BINDING_NAME_" .. command] or command
+        local d = ns.UI and ns.UI.DescribeCommand and ns.UI.DescribeCommand(command)
+        if d and d.kind ~= "other" and d.name then label = label .. " -> " .. d.name end
+        out.bindings[key] = label
+      end
+    end
+  end
+  return out
+end)
+
 -- Which APIs this client has and what is hidden from addons. Answers
 -- "can Agentcraft read X on this game version?".
 M.AddSection("apiProbe", function()
