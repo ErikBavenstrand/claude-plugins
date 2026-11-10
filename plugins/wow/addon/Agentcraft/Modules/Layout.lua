@@ -76,48 +76,52 @@ L.keyboard = {
 L.controller = {
   HUNTER = {
     pages = {
-      -- Page 1: combat. RT = ranged rotation, LT = melee, defence and cooldowns,
-      -- D-pad = aspects radial and standing-still tools, LT+RT = crowd control.
+      -- Page 1: everything you press in a normal session.
+      --   Face buttons (with a trigger) leave your left thumb on the stick, so
+      --   they hold what you press while moving: RT = ranged, LT = melee.
+      --   The D-pad takes your left thumb off the stick, so you stop moving:
+      --   it holds stand-still casts (Mark, Aimed Shot, traps) and
+      --   out-of-combat basics. LT+RT is the hardest chord: rare spells.
       {
         title = "Combat",
         ["RT A"] = { macro = "Arcane", "Arcane Shot" },
         ["RT X"] = { macro = "Pull", "Serpent Sting" },
-        ["RT B"] = { "Aimed Shot" },
-        ["RT Y"] = { "Summon Hawk", "Sniper Shot" },
-        -- RT D-pad mirrors keyboard 1 2 3 4: Mark up, Multi right, Concussive left, trap down.
+        ["RT B"] = { "Concussive Shot" },
+        ["RT Y"] = { "Multi-Shot" },
         ["RT Up"] = { macro = "Mark", "Hunter's Mark" },
-        ["RT Right"] = { "Multi-Shot" },
-        ["RT Left"] = { "Concussive Shot" },
+        ["RT Right"] = { "Aimed Shot" },
+        ["RT Left"] = { "Summon Hawk", "Sniper Shot" },
         ["RT Down"] = { "Explosive Trap", "Immolation Trap" },
         ["LT A"] = { "Raptor Strike" },
         ["LT X"] = { "Mongoose Bite" },
-        ["LT B"] = { "Disengage" },
-        ["LT Y"] = { "Wing Clip" },
+        ["LT B"] = { "Wing Clip" },
+        ["LT Y"] = { "Disengage" },
         ["LT Up"] = { "Mend Pet" },
-        ["LT Down"] = { "Rapid Fire" },
+        ["LT Down"] = { "Freezing Trap" },
         ["LT Left"] = { "Intimidation", "Counterattack", "Scatter Shot" },
         ["LT Right"] = { "Bestial Wrath", "Deterrence", "Trueshot Aura" },
-        ["none Up"] = { flyout = 253, "Aspect of the Hawk" },   -- every aspect, right stick picks
-        ["none Left"] = { "Freezing Trap" },
-        ["none Right"] = { racial = true },
+        -- No trigger: radials (right stick picks) and out-of-combat basics.
+        ["none Up"] = { flyout = 253, "Aspect of the Hawk" },        -- aspects
+        ["none Left"] = { flyout = "Tracking", "Track Beasts" },      -- tracking
+        ["none Right"] = { macro = "Feed", covers = { "Feed Pet" } },
         ["none Down"] = { macro = "Eat" },
         ["LT+RT A"] = { "Feign Death" },
         ["LT+RT X"] = { "Frost Trap" },
         ["LT+RT B"] = { "Scare Beast" },
-        ["LT+RT Y"] = { "Distracting Shot" },
+        ["LT+RT Y"] = { "Rapid Fire" },
         ["LT+RT Up"] = { "Viper Sting" },
         ["LT+RT Down"] = { "Volley" },
         ["LT+RT Left"] = { "Flare" },
         ["LT+RT Right"] = { "Wyvern Sting", "Tranquilizing Shot" },
       },
-      -- Page 2: pet care, consumables, travel and professions.
+      -- Page 2: hobbies, pet care, consumables, travel and professions.
       {
         title = "Utility",
         ["RT A"] = { "Revive Pet" },
         ["RT X"] = { "Call Pet" },
-        ["RT B"] = { macro = "Feed", covers = { "Feed Pet" } },
-        ["RT Y"] = { "Dismiss Pet" },
-        ["RT Up"] = { "Beast Lore" },
+        ["RT B"] = { "Dismiss Pet" },
+        ["RT Y"] = { "Beast Lore" },
+        ["RT Up"] = { macro = "Hearth" },
         ["RT Down"] = { "Beast Training" },
         ["RT Left"] = { "Eyes of the Beast" },
         ["RT Right"] = { "Tame Beast" },
@@ -129,9 +133,10 @@ L.controller = {
         ["LT Down"] = { utility = 7 }, -- on-use trinket
         ["LT Left"] = { utility = 5 }, -- dynamite
         ["LT Right"] = { utility = 6 }, -- gadget
-        ["none Up"] = { macro = "Hearth" },
-        ["none Left"] = { macro = "Fish" },
-        ["none Right"] = { macro = "Track", covers = { "Find Minerals", "Track Humanoids", "Track Beasts" } },
+        -- No trigger, the first thing on this page: fishing and gathering.
+        ["none Up"] = { macro = "Fish" },
+        ["none Left"] = { macro = "Lure" },
+        ["none Right"] = { "Find Minerals", "Find Herbs" },
         ["none Down"] = { macro = "Campfire" },
         ["LT+RT A"] = { "Smelting" },
         ["LT+RT X"] = { "Cooking" },
@@ -139,8 +144,8 @@ L.controller = {
         ["LT+RT Y"] = { "Engineering" },
         ["LT+RT Up"] = { "Alchemy", "Blacksmithing", "Leatherworking", "Tailoring", "Enchanting" },
         ["LT+RT Down"] = { macro = "SellGrays" },
-        ["LT+RT Left"] = { "Disenchant", "Skinning" },
-        ["LT+RT Right"] = { macro = "Lure" },
+        ["LT+RT Left"] = { "Disenchant" },
+        ["LT+RT Right"] = { "Skinning" },
       },
       -- Page 3: Steam Deck helpers (no keyboard needed) and the catch-all.
       {
