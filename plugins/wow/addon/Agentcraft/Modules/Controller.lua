@@ -183,7 +183,7 @@ local function Storage(page, slotID)
 end
 
 -- Spells never offered by the catch-all: always-on or handled by the UI.
-local OVERFLOW_SKIP = { ["Attack"] = true, ["Auto Shot"] = true, ["Shoot"] = true, ["Throw"] = true }
+local OVERFLOW_SKIP = { ["Attack"] = true, ["Auto Shot"] = true, ["Shoot"] = true, ["Throw"] = true, ["Cultivation"] = true }
 
 -- Known spells with no controller home (and not inside a placed flyout),
 -- alphabetically, for the { overflow = true } buttons.
@@ -201,10 +201,15 @@ local function OverflowSpells(pages, known)
             if spellID then placed[spellID] = true end
           end
         end
-        -- A macro version counts as placing its spell.
-        if item.kind == "macro" and entry[1] then
-          local id = KnownID(entry[1], known)
-          if id then placed[id] = true end
+        -- A macro version counts as placing its spell, and covers = { ... }
+        -- lists other spells a macro already casts.
+        if item.kind == "macro" then
+          local names = { entry[1] }
+          for _, n in ipairs(entry.covers or {}) do names[#names + 1] = n end
+          for _, n in ipairs(names) do
+            local id = KnownID(n, known)
+            if id then placed[id] = true end
+          end
         end
       end
     end

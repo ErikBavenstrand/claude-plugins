@@ -75,7 +75,7 @@ local PROFESSIONS = {
 }
 local PROFESSION_RANK = {}
 for i, name in ipairs(PROFESSIONS) do PROFESSION_RANK[name] = i end
-local IGNORE = { ["Attack"] = true, ["Auto Attack"] = true, ["Auto Shot"] = true, ["Shoot"] = true, ["Throw"] = true }
+local IGNORE = { ["Attack"] = true, ["Auto Attack"] = true, ["Auto Shot"] = true, ["Shoot"] = true, ["Throw"] = true, ["Cultivation"] = true }
 
 local function IsPet(name) return PET_SPELLS[name] or name:find("^Summon ") end
 local function IsTracking(name) return name:find("^Track ") or name:find("^Find ") or name:find("^Sense ") end

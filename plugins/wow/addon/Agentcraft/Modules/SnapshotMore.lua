@@ -355,6 +355,15 @@ M.AddSection("controller", function()
   end
   out.note = "current = what each button does right now, including the controller UI's override bindings"
 
+  -- Steam Deck back buttons arrive as F13-F16 (plain and with LT = Shift).
+  out.backButtons = {}
+  for _, b in ipairs({ "F13", "F14", "F15", "F16" }) do
+    for _, m in ipairs({ "", "SHIFT-" }) do
+      local ok, action = pcall(GetBindingAction, m .. b, true)
+      if ok and action and action ~= "" then out.backButtons[m .. b] = action end
+    end
+  end
+
   -- The controller UI routes buttons to click frames. Describe those frames
   -- and every action button whose hotkey shows a controller glyph, so the
   -- button -> action slot -> spell chain can be followed.

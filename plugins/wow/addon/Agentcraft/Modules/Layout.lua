@@ -21,6 +21,8 @@
 --   { flyout = 253, "Aspect of the Hawk" } a spellbook flyout (radial on a controller)
 --   { utility = 2 }                   best item for ActionBars.utility[2]
 --   { racial = true }                 your race's active racial
+--   { macro = "Track", covers = { ... } } spells the macro already casts, so
+--                                     the controller catch-all skips them
 --   { overflow = true }               controller only: a spell you know that
 --                                     has no other controller home
 local _, ns = ...
@@ -113,7 +115,7 @@ L.controller = {
         title = "Utility",
         ["RT A"] = { "Revive Pet" },
         ["RT X"] = { "Call Pet" },
-        ["RT B"] = { macro = "Feed" },
+        ["RT B"] = { macro = "Feed", covers = { "Feed Pet" } },
         ["RT Y"] = { "Dismiss Pet" },
         ["RT Up"] = { "Beast Lore" },
         ["RT Down"] = { "Beast Training" },
@@ -129,7 +131,7 @@ L.controller = {
         ["LT Right"] = { utility = 6 }, -- gadget
         ["none Up"] = { macro = "Hearth" },
         ["none Left"] = { macro = "Fish" },
-        ["none Right"] = { macro = "Track" },
+        ["none Right"] = { macro = "Track", covers = { "Find Minerals", "Track Humanoids", "Track Beasts" } },
         ["none Down"] = { macro = "Campfire" },
         ["LT+RT A"] = { "Smelting" },
         ["LT+RT X"] = { "Cooking" },
