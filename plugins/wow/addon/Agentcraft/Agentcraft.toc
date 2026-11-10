@@ -1,7 +1,7 @@
 ## Interface: 120105, 50504, 20506, 16001, 11509
 ## Title: Agentcraft
 ## Notes: Your character, readable by Claude Code. Type /ac to open the window.
-## Version: 0.9.1
+## Version: 0.10.0
 ## SavedVariables: AgentcraftDB
 ## SavedVariablesPerCharacter: AgentcraftCharDB
 
@@ -17,5 +17,6 @@ Macros\Data\Hunter.lua
 Macros\Data\General.lua
 Macros\Data\Racial.lua
 Macros\Page.lua
+Modules\Controller.lua
 UI\Window.lua
 UI\Settings.lua

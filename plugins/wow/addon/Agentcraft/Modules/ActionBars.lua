@@ -211,6 +211,15 @@ local function ResolveUtility(entry, bags, list)
   end
 end
 
+-- For other modules (Controller): item ID for a utility entry, or nil.
+function M.ResolveUtilityItem(entry)
+  local bags, list = BagItems()
+  return ResolveUtility(entry, bags, list)
+end
+
+-- For other modules: known spell name -> highest-rank spell ID.
+function M.KnownSpellIDs() return KnownSpells() end
+
 local function UtilityLabel(entry)
   if type(entry) == "string" then return entry end
   return entry[#entry] .. " (or better)"

@@ -62,5 +62,10 @@ L.Add({ name = "Growl", category = "pet", class = "HUNTER", order = 30, perChara
 
 L.Add({ name = "Recall", category = "pet", class = "HUNTER", order = 40, perCharacter = true,
   iconFile = "Ability_Hunter_BeastCall",
-  desc = "Calls your pet back and stops it attacking.",
-  body = "/petfollow\n/petpassive\n/petdefensive" })
+  desc = "Calls your pet back to you.",
+  body = "/petfollow" })
+
+L.Add({ name = "PetAttack", category = "pet", class = "HUNTER", order = 5, perCharacter = true,
+  iconFile = "Ability_GhoulFrenzy", tags = { "controller" },
+  desc = "Sends your pet at your target. Made for a controller back button.",
+  body = "/petattack [@target,harm,nodead]" })
