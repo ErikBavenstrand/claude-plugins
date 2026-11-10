@@ -18,5 +18,6 @@ Macros\Data\General.lua
 Macros\Data\Racial.lua
 Macros\Page.lua
 Modules\Controller.lua
+Modules\Fishing.lua
 UI\Window.lua
 UI\Settings.lua
