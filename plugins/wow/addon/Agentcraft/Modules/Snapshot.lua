@@ -452,7 +452,7 @@ local function Quests()
   return list
 end
 
--- Action slots 1-120 with their key, e.g. "Q | spell | 13550 | Serpent Sting".
+-- Action slots 1-180 (controller layouts use slots past 120) with their key, e.g. "Q | spell | 13550 | Serpent Sting".
 local SLOT_COMMANDS = {
   { 0, "ACTIONBUTTON" }, { 60, "MULTIACTIONBAR1BUTTON" }, { 48, "MULTIACTIONBAR2BUTTON" },
   { 24, "MULTIACTIONBAR3BUTTON" }, { 36, "MULTIACTIONBAR4BUTTON" },
@@ -463,7 +463,7 @@ local function Bars()
     for i = 1, 12 do keyFor[c[1] + i] = GetBindingKey(c[2] .. i) end
   end
   local slots = {}
-  for s = 1, 120 do
+  for s = 1, 180 do
     local t, id = GetActionInfo(s)
     if t then
       local name
