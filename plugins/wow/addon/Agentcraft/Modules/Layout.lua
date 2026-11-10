@@ -107,7 +107,7 @@ L.controller = {
         ["none Down"] = { macro = "Eat" },
         ["LT+RT A"] = { "Feign Death" },
         ["LT+RT X"] = { "Frost Trap" },
-        ["LT+RT B"] = { "Scare Beast" },
+        ["LT+RT B"] = { racial = true },   -- War Stomp etc.; also on back button LT+R5
         ["LT+RT Y"] = { "Rapid Fire" },
         ["LT+RT Up"] = { "Viper Sting" },
         ["LT+RT Down"] = { "Volley" },
