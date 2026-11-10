@@ -135,6 +135,7 @@ end
 -- Resolving entries -------------------------------------------------------------
 
 local function Util() return GamepadActionBarBindingUtil end
+local KnownID -- defined below
 
 local function Layout()
   local _, class = UnitClass("player")
@@ -179,6 +180,16 @@ local function MacroIndex(name)
   end
 end
 
+-- Spell ID for a name you know. The class spellbook map misses profession
+-- spells (Smelting, Cooking) and renamed ones ("Call Pet" shows as
+-- "Call <pet name>"), so fall back to the game's own lookup.
+function KnownID(name, known)
+  if known[name] then return known[name] end
+  local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(name)
+  local id = info and info.spellID
+  if id and ((IsPlayerSpell and IsPlayerSpell(id)) or (IsSpellKnown and IsSpellKnown(id))) then return id end
+end
+
 -- Returns a plan item: { kind, id, name, icon } or { missing = "label" }.
 function M.Resolve(entry, known)
   if entry.flyout then
@@ -187,7 +198,8 @@ function M.Resolve(entry, known)
   end
   if entry.racial then
     for _, n in ipairs(RACIALS) do
-      if known[n] then return { kind = "spell", id = known[n], name = n } end
+      local id = KnownID(n, known)
+      if id then return { kind = "spell", id = id, name = n } end
     end
     return { missing = "racial" }
   end
@@ -203,7 +215,8 @@ function M.Resolve(entry, known)
     return { missing = type(spec) == "table" and (spec[#spec] .. " (or better)") or tostring(spec) }
   end
   for _, n in ipairs(entry) do
-    if known[n] then return { kind = "spell", id = known[n], name = n } end
+    local id = KnownID(n, known)
+    if id then return { kind = "spell", id = id, name = n } end
   end
   return { missing = entry[#entry] or "?" }
 end
