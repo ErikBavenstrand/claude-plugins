@@ -35,15 +35,17 @@ L.controller = {
 L.roles = {
   HUNTER = {
     -- Most pressed. Keyboard Q E R T 1 2 3 4, controller RT face then RT D-pad.
+    -- { macro = "Pull", "Serpent Sting" } puts the macro version in the spell's home:
+    -- Arcane, Pull and Mark also send your pet in (Arcane keeps Auto Shot running).
     rotation = {
-      { "Arcane Shot" },
-      { "Serpent Sting" },
+      { macro = "Arcane", "Arcane Shot" },
+      { macro = "Pull", "Serpent Sting" },
       { "Aimed Shot" },
       { "Summon Hawk", "Sniper Shot" },            -- build signature: BM / MM
       { "Multi-Shot" },
       { "Explosive Trap", "Immolation Trap" },     -- damage trap, usable in combat in Forever
       { "Concussive Shot" },
-      { "Hunter's Mark" },                         -- once per target, before moving
+      { macro = "Mark", "Hunter's Mark" },         -- once per target, before moving
     },
     -- Keyboard F G C V + Shift Q E R T, controller LT face then LT D-pad.
     melee = {

@@ -124,8 +124,14 @@ function M.Resolve(entry, known, used)
     return { missing = "racial" }
   end
   if entry.macro then
-    local exists = GetMacroIndexByName(entry.macro)
-    return { kind = "macro", name = entry.macro, installed = exists and exists > 0 }
+    -- { macro = "Pull", "Serpent Sting" }: the macro version of a spell's home.
+    -- It needs the spell; until you know it, the home stays empty like a plain spell.
+    local needs = entry[1]
+    if not needs or KnownID(needs, known) then
+      local exists = GetMacroIndexByName(entry.macro)
+      return { kind = "macro", name = entry.macro, installed = exists and exists > 0 }
+    end
+    return { missing = needs }
   end
   if entry.utility then
     local AB = ns.modules.actionbars
