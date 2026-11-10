@@ -320,20 +320,40 @@ M.AddSection("controller", function()
     local ok, v = pcall(C_CVar.GetCVar, cv)
     if ok and v then out.settings[cv] = v end
   end
-  -- GetBinding(i) returns command, category, key1, key2, ...
+  local function Label(command)
+    local label = _G["BINDING_NAME_" .. command] or command
+    local d = ns.UI and ns.UI.DescribeCommand and ns.UI.DescribeCommand(command)
+    if d and d.kind ~= "other" and d.name then label = label .. " -> " .. d.name end
+    return label
+  end
+  local function IsPad(key) return key:find("PAD") and not key:find("NUMPAD") end
+
+  -- Saved bindings: GetBinding(i) returns command, category, key1, key2, ...
   for i = 1, GetNumBindings() do
     local r = { GetBinding(i) }
-    local command = r[1]
     for k = 3, #r do
       local key = r[k]
-      if type(key) == "string" and key:find("PAD") then
-        local label = _G["BINDING_NAME_" .. command] or command
-        local d = ns.UI and ns.UI.DescribeCommand and ns.UI.DescribeCommand(command)
-        if d and d.kind ~= "other" and d.name then label = label .. " -> " .. d.name end
-        out.bindings[key] = label
-      end
+      if type(key) == "string" and IsPad(key) then out.bindings[key] = Label(r[1]) end
     end
   end
+
+  -- The controller UI binds buttons with override bindings, which GetBinding
+  -- doesn't list. Ask what every pad button (with each modifier) does now.
+  local buttons = { "PAD1", "PAD2", "PAD3", "PAD4", "PAD5", "PAD6", "PADDUP", "PADDDOWN", "PADDLEFT", "PADDRIGHT",
+    "PADLSHOULDER", "PADRSHOULDER", "PADLTRIGGER", "PADRTRIGGER", "PADLSTICK", "PADRSTICK", "PADBACK",
+    "PADFORWARD", "PADSOCIAL", "PADSYSTEM", "PADPADDLE1", "PADPADDLE2", "PADPADDLE3", "PADPADDLE4",
+    "PADLSTICKUP", "PADLSTICKDOWN", "PADLSTICKLEFT", "PADLSTICKRIGHT",
+    "PADRSTICKUP", "PADRSTICKDOWN", "PADRSTICKLEFT", "PADRSTICKRIGHT" }
+  local mods = { "", "SHIFT-", "CTRL-", "ALT-", "CTRL-SHIFT-" }
+  out.current = {}
+  for _, m in ipairs(mods) do
+    for _, b in ipairs(buttons) do
+      local key = m .. b
+      local ok, action = pcall(GetBindingAction, key, true)
+      if ok and action and action ~= "" then out.current[key] = Label(action) end
+    end
+  end
+  out.note = "current = what each button does right now, including the controller UI's override bindings"
   return out
 end)
 
