@@ -60,7 +60,10 @@ L.roles = {
     },
     -- Things used standing still. Keyboard Shift F G C V, controller D-pad.
     stationary = {
-      { flyout = 253, "Aspect of the Hawk" },      -- aspects (a radial on the controller)
+      -- Aspects: a radial on the controller. A keyboard key can only open a
+      -- flyout (you'd pick with the mouse), so the keyboard gets the Aspect
+      -- macro instead: Hawk in combat, Cheetah out of combat, Ctrl for Monkey.
+      { flyout = 253, "Aspect of the Hawk", keyboard = { macro = "Aspect", "Aspect of the Hawk" } },
       { "Freezing Trap" },
       { racial = true },
       { macro = "Eat" },
@@ -147,7 +150,8 @@ function L.KeyboardBars(class)
   for _, role in ipairs(ROLE_ORDER) do
     for i, entry in ipairs(r[role] or {}) do
       local pos = L.keyboard[role][i]
-      if pos then bars[pos[1]][pos[2]] = entry end
+      -- entry.keyboard: a keyboard-only replacement for this home.
+      if pos then bars[pos[1]][pos[2]] = entry.keyboard or entry end
     end
   end
   return bars
