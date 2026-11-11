@@ -1,11 +1,10 @@
--- Macros for every class: utility. Sources: warcraft.wiki.gg Useful macros.
--- See Library.lua for the fields and rules.
+-- Macros for every class: fishing and utility. Sources: warcraft.wiki.gg
+-- Useful macros. See Library.lua for the fields and rules.
 --
 -- A macro earns its place only if it does something a plain button or the
 -- game's own menus can't, and keeps working forever once installed: it names
--- spells and slash commands only, never an item. Food, drink and fishing
--- are plain buttons (items and the Fishing spell); the Fishing module equips
--- your pole when you press Fishing without it.
+-- spells, slash commands and equipment sets only, never an item. Food and
+-- drink are item buttons placed by Apply.
 local _, ns = ...
 local L = ns.MacroLibrary
 
