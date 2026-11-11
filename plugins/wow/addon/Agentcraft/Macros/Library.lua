@@ -17,6 +17,7 @@
 --     untested = true,            -- shows a warning: not yet confirmed on this game version
 --     live = true,                -- rewritten when bags/level/pet/gear change (see RefreshLive)
 --     fallback = "No food",       -- live only: red error shown when it can't be filled
+--     fallbackWhen = "no food",   -- only for this Resolve reason (else keep the last version)
 --     desc = "One sentence: what pressing it does.",
 --     modifiers = { "Shift: ...", "Ctrl: ..." },
 --     body = "#showtooltip ...\n/cast ...",   -- 255 characters max after filling
@@ -274,6 +275,39 @@ function L.LureNeeded()
   end
 end
 
+-- The food to feed your pet, picked the way a hunter would:
+--   1. Only what this pet eats (its diet, and not too low level: the game's
+--      own check, C_PetInfo.CanPetEatItem).
+--   2. Food you can't eat yourself first (raw meat, raw fish, bread you
+--      outlevel is still yours), so the pet never eats your own meals.
+--   3. Among those, the lowest-level food that still makes the pet fully
+--      happy: no more than 10 levels below the pet. Lower food gives the pet
+--      less happiness, so it's used only when nothing better is left.
+-- Returns item ID, or nil and a reason.
+function L.BestPetFood()
+  if not (C_PetInfo and C_PetInfo.CanPetEatItem) then return nil, "can't check pet food here" end
+  if not UnitExists("pet") then return nil, "summon your pet" end
+  local petLevel = UnitLevel("pet") or 1
+  local best, bestKey
+  for _, id in ipairs(BagItemIDs()) do
+    local ok, eats = pcall(C_PetInfo.CanPetEatItem, id)
+    if ok and eats then
+      local _, _, _, itemLevel = ((C_Item and C_Item.GetItemInfo) or GetItemInfo)(id)
+      itemLevel = itemLevel or 1
+      local AB = ns.modules.actionbars
+      local kind = AB and AB.ConsumableKind and AB.ConsumableKind(id)
+      local mine = (kind == "Food" or kind == "Both") and 1 or 0 -- you can eat it too
+      local full = itemLevel >= petLevel - 10 and 0 or 1
+      -- Sort key: pet-only first, then full happiness, then lowest level
+      -- (or, below full happiness, highest level).
+      local key = mine * 1e6 + full * 1e4 + (full == 0 and itemLevel or (1000 - itemLevel))
+      if not bestKey or key < bestKey then best, bestKey = id, key end
+    end
+  end
+  if best then return best end
+  return nil, "no food your pet eats"
+end
+
 L.placeholders = {
   -- Fish macro steps: the lure while one is needed, else Fishing.
   LURE = function() return L.LureNeeded() end,
@@ -287,13 +321,9 @@ L.placeholders = {
     return nil, "no food or drink in bags"
   end,
   PETFOOD = function()
-    if not (C_PetInfo and C_PetInfo.CanPetEatItem) then return nil, "can't check pet food here" end
-    if not UnitExists("pet") then return nil, "summon your pet" end
-    for _, id in ipairs(BagItemIDs()) do
-      local ok, eats = pcall(C_PetInfo.CanPetEatItem, id)
-      if ok and eats then return ItemName(id) end
-    end
-    return nil, "no pet food in bags"
+    local id, why = L.BestPetFood()
+    if id then return ItemName(id) end
+    return nil, why
   end,
   FOOD = function()
     local name = BestConsumable("Food")
@@ -414,8 +444,9 @@ function L.RefreshLive()
     if m.live then
       local index = IndexOf(m.name)
       if index > 0 then
-        local body = L.Resolve(m)
-        if not body and m.fallback then
+        local body, why = L.Resolve(m)
+        -- Only for "you have none"; "summon your pet" keeps the last version.
+        if not body and m.fallback and (not m.fallbackWhen or why == m.fallbackWhen) then
           body = "/run UIErrorsFrame:AddMessage(\"" .. m.fallback .. "\", 1, 0.1, 0.1)"
         end
         local current = (GetMacroBody(index) or ""):gsub("%s+$", "")

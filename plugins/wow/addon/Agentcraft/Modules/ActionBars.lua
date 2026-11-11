@@ -210,6 +210,9 @@ end
 -- For other modules: known spell name -> highest-rank spell ID.
 function M.KnownSpellIDs() return KnownSpells() end
 
+-- For other modules: "Food", "Drink", "Both" or nil for an item ID.
+M.ConsumableKind = ConsumableKind
+
 local function UtilityLabel(entry)
   if type(entry) == "string" then return entry end
   return entry[#entry] .. " (or better)"

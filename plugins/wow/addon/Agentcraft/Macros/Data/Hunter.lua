@@ -40,9 +40,9 @@ L.Add({ name = "PetToggle", category = "pet", class = "HUNTER", order = 6, perCh
   body = "/petfollow [@pettarget,exists]\n/petattack [@pettarget,noexists]" })
 
 L.Add({ name = "Feed", category = "pet", class = "HUNTER", order = 20, perCharacter = true,
-  icon = "Feed Pet", requires = { "Feed Pet" }, live = true,
-  desc = "Feeds your pet the first food in your bags it will eat.",
-  body = "#showtooltip Feed Pet\n/cast Feed Pet\n/use {PETFOOD}" })
+  icon = "Feed Pet", requires = { "Feed Pet" }, live = true, fallback = "No food your pet eats", fallbackWhen = "no food your pet eats",
+  desc = "Feeds your pet the best food for it: only what it eats, food you can't eat yourself first, and the cheapest that still makes it fully happy. The button shows that food and how many you have, and updates as your bags change.",
+  body = "#showtooltip {PETFOOD}\n/cast Feed Pet\n/use {PETFOOD}" })
 
 L.Add({ name = "Recall", category = "pet", class = "HUNTER", order = 40, perCharacter = true,
   iconFile = "Ability_Hunter_BeastCall",
