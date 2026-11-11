@@ -149,32 +149,31 @@ L.controller = {
         ["LT+RT Left"] = { "Disenchant" },
         ["LT+RT Right"] = { "Skinning" },
       },
-      -- Page 3: Steam Deck helpers (no keyboard needed) and the catch-all.
+      -- Page 3: pet autocast, Steam Deck helpers and the catch-all.
       {
-        title = "Deck",
-        ["none Up"] = { macro = "Map" },
-        ["none Left"] = { macro = "Chat" },
-        ["none Right"] = { macro = "Reload" },
+        title = "Pet & Deck",
+        -- RT: every ability your pet knows that can autocast, one on/off
+        -- toggle each, in pet bar order (spinning border = autocast on).
+        ["RT A"] = { petauto = true }, ["RT X"] = { petauto = true },
+        ["RT B"] = { petauto = true }, ["RT Y"] = { petauto = true },
+        ["RT Up"] = { petauto = true }, ["RT Down"] = { petauto = true },
+        ["RT Left"] = { petauto = true }, ["RT Right"] = { petauto = true },
+        ["none Up"] = { macro = "Reload" },
         ["none Down"] = { macro = "Repair" },
-        ["RT A"] = { macro = "Focus" },
-        ["RT X"] = { macro = "Assist" },
-        ["RT B"] = { macro = "Skull" },
-        ["RT Y"] = { macro = "Follow" },
-        ["RT Up"] = { macro = "ReadyCheck" },
-        ["RT Down"] = { macro = "Logout" },
-        ["RT Left"] = { macro = "Screenshot" },
-        ["RT Right"] = { macro = "MaxZoom" },
-        -- Everything else you know, alphabetically: tracking, extra shots...
+        ["none Left"] = { macro = "Focus" },
+        ["none Right"] = { macro = "Assist" },
+        ["LT+RT A"] = { macro = "Skull" },
+        ["LT+RT X"] = { macro = "Follow" },
+        ["LT+RT B"] = { macro = "ReadyCheck" },
+        ["LT+RT Y"] = { macro = "Logout" },
+        ["LT+RT Up"] = { macro = "Screenshot" },
+        -- Everything else you know, alphabetically: extra shots, tracking...
         ["LT A"] = { overflow = true }, ["LT X"] = { overflow = true },
         ["LT B"] = { overflow = true }, ["LT Y"] = { overflow = true },
         ["LT Up"] = { overflow = true }, ["LT Down"] = { overflow = true },
         ["LT Left"] = { overflow = true }, ["LT Right"] = { overflow = true },
-        -- Your pet's abilities, one autocast on/off toggle each (the pet bar
-        -- shows a spinning border while autocast is on).
-        ["LT+RT A"] = { petauto = true }, ["LT+RT X"] = { petauto = true },
-        ["LT+RT B"] = { petauto = true }, ["LT+RT Y"] = { petauto = true },
-        ["LT+RT Up"] = { petauto = true }, ["LT+RT Down"] = { petauto = true },
-        ["LT+RT Left"] = { petauto = true }, ["LT+RT Right"] = { petauto = true },
+        ["LT+RT Down"] = { overflow = true }, ["LT+RT Left"] = { overflow = true },
+        ["LT+RT Right"] = { overflow = true },
       },
     },
     -- Steam Deck back buttons (F13-F16), plain and with LT held.

@@ -62,11 +62,6 @@ L.Add({ name = "Skull", category = "utility", tags = { "group" }, order = 40, ic
   desc = "Puts a skull on your target so the group knows what to kill first.",
   body = "/run SetRaidTarget(\"target\", 8)" })
 
-L.Add({ name = "MaxZoom", category = "utility", tags = { "camera" }, order = 50, iconFile = "INV_Misc_Spyglass_03",
-  untested = true,
-  desc = "Lets the camera zoom out further. Run once; the setting stays.",
-  body = "/console cameraDistanceMaxZoomFactor 2.6" })
-
 L.Add({ name = "QuietErrors", category = "utility", tags = { "interface" }, order = 60, iconFile = "INV_Misc_Note_02",
   desc = "Clears the red error text in the middle of the screen. Add it to the end of spammy macros.",
   body = "/run UIErrorsFrame:Clear()" })
@@ -82,15 +77,13 @@ L.Add({ name = "Repair", category = "utility", tags = { "vendor" }, order = 31, 
   desc = "Repairs all your gear. Press it with a repair vendor's window open.",
   body = "/run if CanMerchantRepair() then RepairAllItems() end" })
 
-L.Add({ name = "Chat", category = "utility", tags = { "controller", "interface" }, order = 71, iconFile = "INV_Letter_15",
-  untested = true,
-  desc = "Opens the chat input box, so the Steam Deck keyboard can type into it.",
-  body = "/run ChatFrame_OpenChat(\"\")" })
-
-L.Add({ name = "Map", category = "utility", tags = { "controller", "interface" }, order = 72, iconFile = "INV_Misc_Map_01",
-  untested = true,
-  desc = "Opens or closes the world map.",
-  body = "/run ToggleWorldMap()" })
+-- Retired macros: removed from /macro on the next controller Apply, but only
+-- while their text is still exactly what Agentcraft installed.
+L.retired = {
+  Map = "/run ToggleWorldMap()",
+  Chat = "/run ChatFrame_OpenChat(\"\")",
+  MaxZoom = "/console cameraDistanceMaxZoomFactor 2.6",
+}
 
 L.Add({ name = "Screenshot", category = "utility", tags = { "controller", "interface" }, order = 73, iconFile = "INV_Misc_Spyglass_02",
   desc = "Takes a screenshot (saved in the game's Screenshots folder).",

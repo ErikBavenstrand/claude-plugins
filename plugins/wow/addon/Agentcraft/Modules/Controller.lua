@@ -85,15 +85,30 @@ local function FindFlyout(want)
   end
 end
 
--- Pet abilities that can autocast, read from the pet bar. Remembered per
--- character, so the toggle buttons stay while your pet is dismissed or dead.
+-- Every pet ability that can autocast: the pet bar first (in its order), then
+-- the rest of the pet's spellbook. Remembered per character, so the toggle
+-- buttons stay while your pet is dismissed or dead.
 local function PetAutocast()
-  local list = {}
-  if UnitExists("pet") and GetPetActionInfo then
-    for i = 1, NUM_PET_ACTION_SLOTS or 10 do
-      local ok, name, texture, isToken, _, allowed = pcall(GetPetActionInfo, i)
-      if ok and name and not isToken and allowed then
-        list[#list + 1] = { name = name, icon = texture }
+  local list, seen = {}, {}
+  local function Add(name, icon)
+    if name and not seen[name] then seen[name] = true; list[#list + 1] = { name = name, icon = icon } end
+  end
+  if UnitExists("pet") then
+    if GetPetActionInfo then
+      for i = 1, NUM_PET_ACTION_SLOTS or 10 do
+        local ok, name, texture, isToken, _, allowed = pcall(GetPetActionInfo, i)
+        if ok and not isToken and allowed then Add(name, texture) end
+      end
+    end
+    local bank = Enum.SpellBookSpellBank and Enum.SpellBookSpellBank.Pet
+    local ok, count = pcall(function() return C_SpellBook.HasPetSpells() end)
+    if bank and ok and count then
+      for i = 1, count do
+        local okInfo, item = pcall(C_SpellBook.GetSpellBookItemInfo, i, bank)
+        if okInfo and item and item.spellID and not item.isPassive then
+          local okAuto, allowed = pcall(C_SpellBook.GetSpellBookItemAutoCast, i, bank)
+          if okAuto and allowed then Add(item.name, item.iconID) end
+        end
       end
     end
     if #list > 0 then M.charDB.petAuto = list end
@@ -371,6 +386,13 @@ function M.Apply()
   if not Util() then return ns.Print("turn on the Gamepad UI first (Options > Gameplay > Gamepad).") end
   local plan, class = M.Plan()
   if not plan then return ns.Print("no controller layout for " .. tostring(class) .. " yet.") end
+
+  -- Delete retired Agentcraft macros you never edited.
+  local retired = ns.MacroLibrary and ns.MacroLibrary.retired or {}
+  for name, body in pairs(retired) do
+    local i = GetMacroIndexByName(name)
+    if i and i > 0 and (GetMacroBody(i) or ""):gsub("%s+$", "") == body then DeleteMacro(i) end
+  end
 
   -- Save the current layout once per apply, for undo.
   local backup = { slots = {}, binds = {} }
