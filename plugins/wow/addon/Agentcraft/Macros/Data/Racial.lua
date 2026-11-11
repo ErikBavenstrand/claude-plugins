@@ -1,4 +1,5 @@
 -- Racial ability macros (Classic racials). Each shows only for its race.
+-- Only racials a macro improves; the rest go on bars as plain spells.
 -- See Library.lua for the fields.
 local _, ns = ...
 local L = ns.MacroLibrary
@@ -18,27 +19,7 @@ L.Add({ name = "BloodFury", category = "racial", race = "Orc", order = 10, icon 
   desc = "Blood Fury together with your pet attacking, for burst.",
   body = "#showtooltip Blood Fury\n/petattack [@target,harm,nodead]\n/cast Blood Fury" })
 
-L.Add({ name = "Forsaken", category = "racial", race = "Scourge", order = 10, icon = "Will of the Forsaken",
-  requires = { "Will of the Forsaken" }, tags = { "defensive" },
-  desc = "Breaks fear, charm and sleep.",
-  body = "#showtooltip Will of the Forsaken\n/cast Will of the Forsaken" })
-
-L.Add({ name = "Stoneform", category = "racial", race = "Dwarf", order = 10, icon = "Stoneform",
-  requires = { "Stoneform" }, tags = { "defensive" },
-  desc = "Removes poison, disease and bleed and adds armor.",
-  body = "#showtooltip Stoneform\n/cast Stoneform" })
-
 L.Add({ name = "Meld", category = "racial", race = "NightElf", order = 10, icon = "Shadowmeld",
   requires = { "Shadowmeld" }, tags = { "stealth" },
-  desc = "Stops attacking and melds into the shadows.",
-  body = "#showtooltip Shadowmeld\n/stopattack\n/petpassive\n/cast Shadowmeld" })
-
-L.Add({ name = "EscArtist", category = "racial", race = "Gnome", order = 10, icon = "Escape Artist",
-  requires = { "Escape Artist" }, tags = { "defensive" },
-  desc = "Breaks roots and snares.",
-  body = "#showtooltip Escape Artist\n/cast Escape Artist" })
-
-L.Add({ name = "Perception", category = "racial", race = "Human", order = 10, icon = "Perception",
-  requires = { "Perception" }, tags = { "stealth" },
-  desc = "Raises stealth detection for 20 seconds.",
-  body = "#showtooltip Perception\n/cast Perception" })
+  desc = "Stops attacking, calls your pet back and melds into the shadows.",
+  body = "#showtooltip Shadowmeld\n/stopattack\n/petfollow\n/cast Shadowmeld" })

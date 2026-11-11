@@ -21,7 +21,7 @@
 --   { flyout = 253, "Aspect of the Hawk" } a spellbook flyout (radial on a controller)
 --   { utility = 2 }                   best item for ActionBars.utility[2]
 --   { racial = true }                 your race's active racial
---   { macro = "Track", covers = { ... } } spells the macro already casts, so
+--   { macro = "Feed", covers = { ... } } spells the macro already casts, so
 --                                     the controller catch-all skips them
 --   { petauto = true }                controller only: an autocast toggle for
 --                                     your pet's next autocastable ability
@@ -137,9 +137,9 @@ L.controller = {
         ["LT Right"] = { utility = 6 }, -- gadget
         -- No trigger, the first thing on this page: fishing and gathering.
         ["none Up"] = { macro = "Fish" },
-        ["none Left"] = { macro = "Lure" },
+        ["none Left"] = { overflow = true },
         ["none Right"] = { "Find Minerals", "Find Herbs" },
-        ["none Down"] = { macro = "Campfire" },
+        ["none Down"] = { "Basic Campfire" },
         ["LT+RT A"] = { "Smelting" },
         ["LT+RT X"] = { "Cooking" },
         ["LT+RT B"] = { "First Aid" },
