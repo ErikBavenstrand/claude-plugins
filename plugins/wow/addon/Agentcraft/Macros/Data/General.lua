@@ -9,15 +9,15 @@ local _, ns = ...
 local L = ns.MacroLibrary
 
 -- Fishing ----------------------------------------------------------------------
--- Names equipment sets, not items, so it never needs rewriting. Agentcraft
--- saves the sets "Fishing" (your pole) and "Weapons" (your weapons) in the
--- game's equipment manager whenever you equip them; you can see them in the
--- character window. "Fishing Pole" is the item type, so any pole counts.
+-- With a pole in your hands it fishes. Otherwise it tries every common pole
+-- by name, worst first, so the best one you carry ends up equipped; poles
+-- you don't have are skipped. "Fishing Pole" in [equipped:] is the item
+-- type, so any pole counts. Put your weapons back yourself.
 
 L.Add({ name = "Fish", category = "fishing", profession = "Fishing", order = 10, icon = "Fishing",
-  tags = { "controller", "gear" }, untested = true,
-  desc = "One button fishing: first press equips your pole, next presses fish. In combat it swaps straight back to your weapons. Out of combat Agentcraft swaps them back after 15 seconds idle or when you mount.",
-  body = "#showtooltip Fishing\n/equipset [combat] Weapons\n/stopmacro [combat]\n/equipset [noequipped:Fishing Pole] Fishing\n/cast [equipped:Fishing Pole] Fishing" })
+  tags = { "controller", "gear" },
+  desc = "One button fishing: equips your best pole if you aren't holding one, otherwise fishes. Equip your weapons again yourself when you're done.",
+  body = "#showtooltip Fishing\n/cast [equipped:Fishing Pole] Fishing\n/stopmacro [equipped:Fishing Pole]\n/equip Fishing Pole\n/equip Strong Fishing Pole\n/equip Darkwood Fishing Pole\n/equip Big Iron Fishing Pole\n/equip Seth's Graphite Fishing Pole" })
 
 -- Utility ----------------------------------------------------------------------
 
