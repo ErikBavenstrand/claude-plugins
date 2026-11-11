@@ -20,6 +20,7 @@
 --   { macro = "Pull", "Serpent Sting" } the macro, once you know the spell
 --   { flyout = 253, "Aspect of the Hawk" } a spellbook flyout (radial on a controller)
 --   { utility = 2 }                   best item for ActionBars.utility[2]
+--   { item = "Hearthstone" }          that item, wherever it is in your bags
 --   { racial = true }                 your race's active racial
 --   { macro = "Feed", covers = { ... } } spells the macro already casts, so
 --                                     the controller catch-all skips them
@@ -123,7 +124,7 @@ L.controller = {
         ["RT X"] = { "Call Pet" },
         ["RT B"] = { "Dismiss Pet" },
         ["RT Y"] = { "Beast Lore" },
-        ["RT Up"] = { macro = "Hearth" },
+        ["RT Up"] = { item = "Hearthstone" },
         ["RT Down"] = { "Beast Training" },
         ["RT Left"] = { "Eyes of the Beast" },
         ["RT Right"] = { "Tame Beast" },

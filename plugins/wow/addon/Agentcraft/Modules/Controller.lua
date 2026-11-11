@@ -182,6 +182,13 @@ function M.Resolve(entry, known, used)
     end
     return { missing = needs }
   end
+  if entry.item then
+    -- { item = "Hearthstone" }: that item, wherever it sits in your bags.
+    local AB = ns.modules.actionbars
+    local id = AB and AB.ResolveUtilityItem({ entry.item })
+    if id then return { kind = "item", id = id, name = entry.item } end
+    return { missing = entry.item }
+  end
   if entry.utility then
     local AB = ns.modules.actionbars
     local spec = AB and AB.utility and AB.utility[entry.utility]

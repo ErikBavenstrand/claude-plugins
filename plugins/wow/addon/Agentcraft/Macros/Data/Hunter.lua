@@ -40,7 +40,7 @@ L.Add({ name = "PetToggle", category = "pet", class = "HUNTER", order = 6, perCh
   body = "/petfollow [@pettarget,exists]\n/petattack [@pettarget,noexists]" })
 
 L.Add({ name = "Feed", category = "pet", class = "HUNTER", order = 20, perCharacter = true,
-  icon = "Feed Pet", requires = { "Feed Pet" },
+  icon = "Feed Pet", requires = { "Feed Pet" }, live = true,
   desc = "Feeds your pet the first food in your bags it will eat.",
   body = "#showtooltip Feed Pet\n/cast Feed Pet\n/use {PETFOOD}" })
 

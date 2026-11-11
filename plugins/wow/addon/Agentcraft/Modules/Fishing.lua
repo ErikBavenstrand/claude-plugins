@@ -32,22 +32,9 @@ local function Equip(id, slot)
   if C_Item and C_Item.EquipItemByName then C_Item.EquipItemByName(id, slot) else EquipItemByName(id, slot) end
 end
 
--- Rewrites the installed Fish macro when its steps change (lure or fish).
+-- Rewrites the Fish macro (a live macro) when its steps change (lure or fish).
 local function RefreshFish()
-  local L = ns.MacroLibrary
-  if not L or InCombatLockdown() then return end
-  local index = GetMacroIndexByName("Fish")
-  if not index or index == 0 then return end
-  for _, m in ipairs(L.macros) do
-    if m.name == "Fish" then
-      local body = L.Resolve(m)
-      local current = (GetMacroBody(index) or ""):gsub("%s+$", "")
-      if body and current ~= body:gsub("%s+$", "") then
-        pcall(EditMacro, index, "Fish", m.iconFile or "INV_Misc_QuestionMark", body)
-      end
-      return
-    end
-  end
+  if ns.MacroLibrary and ns.MacroLibrary.RefreshLive then ns.MacroLibrary.RefreshLive() end
 end
 
 local function Warn(text)

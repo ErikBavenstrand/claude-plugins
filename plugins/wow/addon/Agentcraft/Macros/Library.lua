@@ -15,6 +15,8 @@
 --     requires = { "Serpent Sting" }, -- spells that must be in your spellbook
 --     perCharacter = true,        -- character tab (class macros) or account tab
 --     untested = true,            -- shows a warning: not yet confirmed on this game version
+--     live = true,                -- rewritten when bags/level/pet/gear change (see RefreshLive)
+--     fallback = "No food",       -- live only: red error shown when it can't be filled
 --     desc = "One sentence: what pressing it does.",
 --     modifiers = { "Shift: ...", "Ctrl: ..." },
 --     body = "#showtooltip ...\n/cast ...",   -- 255 characters max after filling
@@ -278,6 +280,12 @@ L.placeholders = {
   LURESLOT = function() return L.LureNeeded() and "16" or nil end,
   FISHSPELL = function() if not L.LureNeeded() then return "Fishing" end end,
   FISHICON = function() return L.LureNeeded() or "Fishing" end,
+  -- The Eat macro's icon and count: your best food, else your best drink.
+  EATICON = function()
+    local name = BestConsumable("Food") or BestConsumable("Drink")
+    if name then return name end
+    return nil, "no food or drink in bags"
+  end,
   PETFOOD = function()
     if not (C_PetInfo and C_PetInfo.CanPetEatItem) then return nil, "can't check pet food here" end
     if not UnitExists("pet") then return nil, "summon your pet" end
@@ -395,6 +403,42 @@ function L.Install(list)
   if #done > 0 then ns.Print("installed " .. table.concat(done, ", ") .. ". Use Pick up to put one on a bar.") end
   if #skipped > 0 then ns.Print("skipped " .. table.concat(skipped, "; ")) end
   if #done == 0 and #skipped == 0 then ns.Print("tick some macros first.") end
+end
+
+-- Live macros (live = true) are rewritten whenever your bags, level, pet or
+-- weapon change, so they always show and use what you carry right now. When
+-- one can't be filled (no food at all), it shows m.fallback as a red error.
+function L.RefreshLive()
+  if InCombatLockdown() then return end
+  for _, m in ipairs(L.macros) do
+    if m.live then
+      local index = IndexOf(m.name)
+      if index > 0 then
+        local body = L.Resolve(m)
+        if not body and m.fallback then
+          body = "/run UIErrorsFrame:AddMessage(\"" .. m.fallback .. "\", 1, 0.1, 0.1)"
+        end
+        local current = (GetMacroBody(index) or ""):gsub("%s+$", "")
+        if body and current ~= body:gsub("%s+$", "") then
+          pcall(EditMacro, index, m.name, IconFor(m), body)
+        end
+      end
+    end
+  end
+end
+
+do
+  local pending
+  local frame = CreateFrame("Frame")
+  for _, e in ipairs({ "PLAYER_ENTERING_WORLD", "BAG_UPDATE_DELAYED", "PLAYER_LEVEL_UP",
+    "PLAYER_REGEN_ENABLED", "UNIT_PET", "UNIT_INVENTORY_CHANGED", "PLAYER_EQUIPMENT_CHANGED" }) do
+    pcall(frame.RegisterEvent, frame, e)
+  end
+  frame:SetScript("OnEvent", function()
+    if pending then return end
+    pending = true
+    C_Timer.After(0.5, function() pending = nil; L.Invalidate(); L.RefreshLive() end)
+  end)
 end
 
 function L.Remove(list)

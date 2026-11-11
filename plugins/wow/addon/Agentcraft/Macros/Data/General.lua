@@ -10,7 +10,7 @@ local L = ns.MacroLibrary
 
 -- Fishing ----------------------------------------------------------------------
 
-L.Add({ name = "Fish", category = "fishing", profession = "Fishing", order = 10, icon = "Fishing",
+L.Add({ name = "Fish", category = "fishing", profession = "Fishing", order = 10, icon = "Fishing", live = true,
   tags = { "controller", "gear" },
   modifiers = { "In combat: swaps straight back to your weapons" },
   desc = "One button fishing: the first press equips your pole. While the pole has no lure and you carry one, the button shows the lure and puts it on; otherwise it fishes. Agentcraft puts your weapons back when you stop, and warns when the lure runs out.",
@@ -19,12 +19,9 @@ L.Add({ name = "Fish", category = "fishing", profession = "Fishing", order = 10,
 -- Utility ----------------------------------------------------------------------
 
 L.Add({ name = "Eat", category = "utility", tags = { "consumables" }, order = 10, iconFile = "INV_Misc_Food_15",
-  desc = "Eats your best food and drinks your best drink at the same time (if you carry one). Apply again after you buy better.",
-  body = "#showtooltip\n/use {FOOD}\n/use {DRINK?}" })
-
-L.Add({ name = "Hearth", category = "utility", tags = { "travel" }, order = 20, icon = "Hearthstone",
-  desc = "Uses your Hearthstone, with its cooldown on the button, wherever it sits in your bags.",
-  body = "#showtooltip Hearthstone\n/use Hearthstone" })
+  live = true, fallback = "No food or drink in your bags",
+  desc = "Eats the highest-level food in your bags and, in the same press, drinks your highest-level drink. The button shows that food and how many you have left, and updates by itself when you loot, buy or level up.",
+  body = "#showtooltip {EATICON}\n/use {FOOD?}\n/use {DRINK?}" })
 
 L.Add({ name = "Skull", category = "utility", tags = { "group" }, order = 40, iconFile = "INV_Misc_Bone_HumanSkull_01",
   desc = "Puts a skull on your target so the group knows what to kill first.",
@@ -60,6 +57,8 @@ L.retired = {
   ReadyCheck = "/readycheck",
   Logout = "/camp",
   QuietErrors = "/run UIErrorsFrame:Clear()",
+  -- The Hearthstone item itself goes on the bar.
+  Hearth = "#showtooltip Hearthstone\n/use Hearthstone",
   -- Fish and the Fishing module do it now.
   Lure = "#showtooltip Shiny Bauble\n/use Shiny Bauble\n/use 16",
   -- One-line wrappers: the plain spell button is the same.
