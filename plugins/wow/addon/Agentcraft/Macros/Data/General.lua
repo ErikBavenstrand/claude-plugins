@@ -1,27 +1,26 @@
--- Macros for every class: fishing and utility. Sources: Blizzard forums
--- fishing macro thread, warcraft.wiki.gg Useful macros. See Library.lua for
--- the fields.
+-- Macros for every class: utility. Sources: warcraft.wiki.gg Useful macros.
+-- See Library.lua for the fields and rules.
 --
 -- A macro earns its place only if it does something a plain button or the
--- game's own menus can't: no one-line /cast or /use wrappers, no mouse-only
--- macros, nothing the vendor window, game menu or Steam already does.
+-- game's own menus can't, and keeps working forever once installed: it names
+-- spells and slash commands only, never an item. Food, drink and fishing
+-- are plain buttons (items and the Fishing spell); the Fishing module equips
+-- your pole when you press Fishing without it.
 local _, ns = ...
 local L = ns.MacroLibrary
 
 -- Fishing ----------------------------------------------------------------------
+-- Names equipment sets, not items, so it never needs rewriting. Agentcraft
+-- saves the sets "Fishing" (your pole) and "Weapons" (your weapons) in the
+-- game's equipment manager whenever you equip them; you can see them in the
+-- character window. "Fishing Pole" is the item type, so any pole counts.
 
-L.Add({ name = "Fish", category = "fishing", profession = "Fishing", order = 10, icon = "Fishing", live = true,
-  tags = { "controller", "gear" },
-  modifiers = { "In combat: swaps straight back to your weapons" },
-  desc = "One button fishing: the first press equips your pole. While the pole has no lure and you carry one, the button shows the lure and puts it on; otherwise it fishes. Agentcraft puts your weapons back when you stop, and warns when the lure runs out.",
-  body = "#showtooltip {FISHICON}\n/equip [combat] {MAINHAND?}\n/equip [combat] {OFFHAND?}\n/stopmacro [combat]\n/equip [noequipped:{POLETYPE}] {FISHINGPOLE}\n/use [equipped:{POLETYPE}] {LURE?}\n/use [equipped:{POLETYPE}] {LURESLOT?}\n/cast [equipped:{POLETYPE}] {FISHSPELL?}" })
+L.Add({ name = "Fish", category = "fishing", profession = "Fishing", order = 10, icon = "Fishing",
+  tags = { "controller", "gear" }, untested = true,
+  desc = "One button fishing: first press equips your pole, next presses fish. In combat it swaps straight back to your weapons. Out of combat Agentcraft swaps them back after 15 seconds idle or when you mount.",
+  body = "#showtooltip Fishing\n/equipset [combat] Weapons\n/stopmacro [combat]\n/equipset [noequipped:Fishing Pole] Fishing\n/cast [equipped:Fishing Pole] Fishing" })
 
 -- Utility ----------------------------------------------------------------------
-
-L.Add({ name = "Eat", category = "utility", tags = { "consumables" }, order = 10, iconFile = "INV_Misc_Food_15",
-  live = true, fallback = "No food or drink in your bags",
-  desc = "Eats the highest-level food in your bags and, in the same press, drinks your highest-level drink. The button shows that food and how many you have left, and updates by itself when you loot, buy or level up.",
-  body = "#showtooltip {EATICON}\n/use {FOOD?}\n/use {DRINK?}" })
 
 L.Add({ name = "Skull", category = "utility", tags = { "group" }, order = 40, iconFile = "INV_Misc_Bone_HumanSkull_01",
   desc = "Puts a skull on your target so the group knows what to kill first.",
@@ -89,4 +88,22 @@ L.retired = {
   AutoShot = "#showtooltip Auto Shot\n/targetenemy [noexists][dead][help]\n/cast !Auto Shot",
   PetAttack = "/petattack [@target,harm,nodead]",
   Growl = "/petautocasttoggle Growl",
+}
+
+-- Retired macros whose text Agentcraft filled in from your bags (so it
+-- differs per person): deleted when every line still has the shape
+-- Agentcraft wrote. A line you added yourself keeps the macro.
+local function OnlyLines(body, allowed)
+  for line in (body .. "\n"):gmatch("(.-)\n") do
+    local ok = line == ""
+    for _, prefix in ipairs(allowed) do
+      if line:sub(1, #prefix) == prefix then ok = true end
+    end
+    if not ok then return false end
+  end
+  return true
+end
+L.retiredShapes = {
+  Eat = function(b) return OnlyLines(b, { "#showtooltip", "/use " }) end,
+  Feed = function(b) return b:find("/cast Feed Pet", 1, true) and OnlyLines(b, { "#showtooltip", "/cast Feed Pet", "/use " }) end,
 }

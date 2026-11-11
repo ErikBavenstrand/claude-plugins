@@ -15,9 +15,6 @@
 --     requires = { "Serpent Sting" }, -- spells that must be in your spellbook
 --     perCharacter = true,        -- character tab (class macros) or account tab
 --     untested = true,            -- shows a warning: not yet confirmed on this game version
---     live = true,                -- rewritten when bags/level/pet/gear change (see RefreshLive)
---     fallback = "No food",       -- live only: red error shown when it can't be filled
---     fallbackWhen = "no food",   -- only for this Resolve reason (else keep the last version)
 --     desc = "One sentence: what pressing it does.",
 --     modifiers = { "Shift: ...", "Ctrl: ..." },
 --     body = "#showtooltip ...\n/cast ...",   -- 255 characters max after filling
@@ -25,7 +22,9 @@
 --
 -- Conventions every macro follows:
 --   * Start with #showtooltip so the button shows the right icon and cooldown.
---   * Plain press does the common thing; Shift is the alternative; Ctrl the rare one.
+--   * Install once, works forever: name only spells and slash commands, never
+--     an item (food, pole, weapon, potion). Items go on bars as item buttons.
+--   * No Shift/Ctrl variants (they are bar layers) and no @mouseover/@cursor.
 --   * Harmful casts use [@target,harm,nodead] so they never hit friends or corpses.
 --   * Name it after what it does, one word where possible ("Pull", "Fish").
 local _, ns = ...
@@ -193,7 +192,6 @@ end
 
 -- Placeholders ----------------------------------------------------------------------
 
-local function ItemName(id) return C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(id) end
 
 -- Fishing poles are weapon class 2, subclass 20 on every client and
 -- language; the subtype text differs ("Fishing Poles" vs "Fishing Pole").
@@ -204,10 +202,6 @@ function L.IsPole(id)
 end
 local IsPole = L.IsPole
 
-local function PoleSubType(id)
-  return select(3, C_Item.GetItemInfoInstant(id))
-end
-
 local function BagItemIDs()
   local ids, seen = {}, {}
   for bag = 0, NUM_BAG_SLOTS or 4 do
@@ -217,12 +211,6 @@ local function BagItemIDs()
     end
   end
   return ids
-end
-
--- Best food or drink you can use (the ActionBars module knows how to spot them).
-local function BestConsumable(kind)
-  local AB = ns.modules.actionbars
-  return AB and AB.BestConsumableName and AB.BestConsumableName(kind)
 end
 
 -- The pole in your hands or bags: item ID.
@@ -254,108 +242,13 @@ local function Weapons()
   return main, off
 end
 L.Weapons = Weapons
+L.FindPole = FindPole
 
--- Fishing lures, best first (item ID, fishing bonus).
-L.lures = {
-  { 6533, 100 }, -- Aquadynamic Fish Attractor
-  { 6532, 75 },  -- Bright Baubles
-  { 7307, 75 },  -- Flesh Eating Worm
-  { 6530, 50 },  -- Nightcrawlers
-  { 6529, 25 },  -- Shiny Bauble
-}
-
--- The lure to put on now: the best one in your bags, but only while the
--- pole is in your hands without a lure on it. Otherwise nil.
-function L.LureNeeded()
-  if not IsPole(GetInventoryItemID("player", 16)) then return nil end
-  if GetWeaponEnchantInfo and GetWeaponEnchantInfo() then return nil end
-  for _, l in ipairs(L.lures) do
-    local count = C_Item and C_Item.GetItemCount and C_Item.GetItemCount(l[1]) or GetItemCount(l[1])
-    if count and count > 0 then return ItemName(l[1]) end
-  end
-end
-
--- The food to feed your pet, picked the way a hunter would:
---   1. Only what this pet eats (its diet, and not too low level: the game's
---      own check, C_PetInfo.CanPetEatItem).
---   2. Food you can't eat yourself first (raw meat, raw fish, bread you
---      outlevel is still yours), so the pet never eats your own meals.
---   3. Among those, the lowest-level food that still makes the pet fully
---      happy: no more than 10 levels below the pet. Lower food gives the pet
---      less happiness, so it's used only when nothing better is left.
--- Returns item ID, or nil and a reason.
-function L.BestPetFood()
-  if not (C_PetInfo and C_PetInfo.CanPetEatItem) then return nil, "can't check pet food here" end
-  if not UnitExists("pet") then return nil, "summon your pet" end
-  local petLevel = UnitLevel("pet") or 1
-  local best, bestKey
-  for _, id in ipairs(BagItemIDs()) do
-    local ok, eats = pcall(C_PetInfo.CanPetEatItem, id)
-    if ok and eats then
-      local _, _, _, itemLevel = ((C_Item and C_Item.GetItemInfo) or GetItemInfo)(id)
-      itemLevel = itemLevel or 1
-      local AB = ns.modules.actionbars
-      local kind = AB and AB.ConsumableKind and AB.ConsumableKind(id)
-      local mine = (kind == "Food" or kind == "Both") and 1 or 0 -- you can eat it too
-      local full = itemLevel >= petLevel - 10 and 0 or 1
-      -- Sort key: pet-only first, then full happiness, then lowest level
-      -- (or, below full happiness, highest level).
-      local key = mine * 1e6 + full * 1e4 + (full == 0 and itemLevel or (1000 - itemLevel))
-      if not bestKey or key < bestKey then best, bestKey = id, key end
-    end
-  end
-  if best then return best end
-  return nil, "no food your pet eats"
-end
-
-L.placeholders = {
-  -- Fish macro steps: the lure while one is needed, else Fishing.
-  LURE = function() return L.LureNeeded() end,
-  LURESLOT = function() return L.LureNeeded() and "16" or nil end,
-  FISHSPELL = function() if not L.LureNeeded() then return "Fishing" end end,
-  FISHICON = function() return L.LureNeeded() or "Fishing" end,
-  -- The Eat macro's icon and count: your best food, else your best drink.
-  EATICON = function()
-    local name = BestConsumable("Food") or BestConsumable("Drink")
-    if name then return name end
-    return nil, "no food or drink in bags"
-  end,
-  PETFOOD = function()
-    local id, why = L.BestPetFood()
-    if id then return ItemName(id) end
-    return nil, why
-  end,
-  FOOD = function()
-    local name = BestConsumable("Food")
-    if name then return name end
-    return nil, "no food in bags"
-  end,
-  DRINK = function()
-    local name = BestConsumable("Drink")
-    if name then return name end
-    return nil, "no drink in bags"
-  end,
-  FISHINGPOLE = function()
-    local id = FindPole()
-    if id then return ItemName(id) end
-    return nil, "no fishing pole"
-  end,
-  -- The pole's type as the client spells it, for [equipped:...] conditions.
-  POLETYPE = function()
-    local id = FindPole()
-    if id then return PoleSubType(id) end
-    return nil, "no fishing pole"
-  end,
-  MAINHAND = function()
-    local main = Weapons()
-    if main then return ItemName(main) end
-    return nil, "equip your weapon once"
-  end,
-  OFFHAND = function()
-    local _, off = Weapons()
-    return off and ItemName(off) or nil
-  end,
-}
+-- Placeholders ({KEY} in a body). Library macros must not depend on what is in
+-- your bags or what you wear: a macro is installed once and has to keep
+-- working without Agentcraft rewriting it. So no macro uses one today; the
+-- mechanism stays for macros that fill in fixed facts (none yet).
+L.placeholders = {}
 
 -- The body with placeholders filled, or nil and a short reason.
 -- {KEY?} is optional: when it can't be filled, its line is dropped.
@@ -433,43 +326,6 @@ function L.Install(list)
   if #done > 0 then ns.Print("installed " .. table.concat(done, ", ") .. ". Use Pick up to put one on a bar.") end
   if #skipped > 0 then ns.Print("skipped " .. table.concat(skipped, "; ")) end
   if #done == 0 and #skipped == 0 then ns.Print("tick some macros first.") end
-end
-
--- Live macros (live = true) are rewritten whenever your bags, level, pet or
--- weapon change, so they always show and use what you carry right now. When
--- one can't be filled (no food at all), it shows m.fallback as a red error.
-function L.RefreshLive()
-  if InCombatLockdown() then return end
-  for _, m in ipairs(L.macros) do
-    if m.live then
-      local index = IndexOf(m.name)
-      if index > 0 then
-        local body, why = L.Resolve(m)
-        -- Only for "you have none"; "summon your pet" keeps the last version.
-        if not body and m.fallback and (not m.fallbackWhen or why == m.fallbackWhen) then
-          body = "/run UIErrorsFrame:AddMessage(\"" .. m.fallback .. "\", 1, 0.1, 0.1)"
-        end
-        local current = (GetMacroBody(index) or ""):gsub("%s+$", "")
-        if body and current ~= body:gsub("%s+$", "") then
-          pcall(EditMacro, index, m.name, IconFor(m), body)
-        end
-      end
-    end
-  end
-end
-
-do
-  local pending
-  local frame = CreateFrame("Frame")
-  for _, e in ipairs({ "PLAYER_ENTERING_WORLD", "BAG_UPDATE_DELAYED", "PLAYER_LEVEL_UP",
-    "PLAYER_REGEN_ENABLED", "UNIT_PET", "UNIT_INVENTORY_CHANGED", "PLAYER_EQUIPMENT_CHANGED" }) do
-    pcall(frame.RegisterEvent, frame, e)
-  end
-  frame:SetScript("OnEvent", function()
-    if pending then return end
-    pending = true
-    C_Timer.After(0.5, function() pending = nil; L.Invalidate(); L.RefreshLive() end)
-  end)
 end
 
 function L.Remove(list)

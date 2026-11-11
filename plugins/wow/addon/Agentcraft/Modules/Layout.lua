@@ -18,11 +18,12 @@
 -- Entry forms (resolved in Controller.lua):
 --   { "Spell", "Alternative" }        first one you know
 --   { macro = "Pull", "Serpent Sting" } the macro if you installed it, else the spell
+--   { macro = "FD", "Feign Death", "Disengage" } before you know Feign Death, Disengage
 --   { flyout = 253, "Aspect of the Hawk" } a spellbook flyout (radial on a controller)
 --   { utility = 2 }                   best item for ActionBars.utility[2]
 --   { item = "Hearthstone" }          that item, wherever it is in your bags
 --   { racial = true }                 your race's active racial
---   { macro = "Feed", covers = { ... } } spells the macro already casts, so
+--   { macro = "PetCare", "Mend Pet", covers = { ... } } other spells the macro casts, so
 --                                     the controller catch-all skips them
 --   { petauto = true }                controller only: an autocast toggle for
 --                                     your pet's next autocastable ability
@@ -44,11 +45,11 @@ L.keyboard = {
       { macro = "Pull", "Serpent Sting" },          -- E  (also pet attack)
       { "Aimed Shot" },                             -- R
       { "Summon Hawk", "Sniper Shot" },             -- T  build signature: BM / MM
-      { "Raptor Strike" },                          -- F
+      { macro = "Melee", "Raptor Strike" },         -- F  (Counterattack / Mongoose Bite / Raptor)
       { "Mongoose Bite" },                          -- G
       { "Disengage" },                              -- C
       { "Wing Clip" },                              -- V
-      { macro = "Mark", "Hunter's Mark" },          -- 1  opener (also pet attack)
+      { macro = "Opener", "Hunter's Mark" },        -- 1  opener (target, Mark, Auto Shot; pet stays)
       { "Multi-Shot" },                             -- 2
       { "Concussive Shot" },                        -- 3
       { "Explosive Trap", "Immolation Trap" },      -- 4  damage trap
@@ -56,14 +57,14 @@ L.keyboard = {
     -- Bar 2 (Shift): Q E R T cooldowns and pet, F G C V crowd control and
     -- escape, 1 2 3 4 aspects. Situational spells go to the side bars.
     [2] = {
-      { "Mend Pet" },                               -- Shift+Q
+      { macro = "PetCare", "Mend Pet" },            -- Shift+Q  (call / revive / mend)
       { "Bestial Wrath", "Deterrence", "Trueshot Aura" },   -- Shift+E  build cooldown
-      { "Rapid Fire" },                             -- Shift+R
+      { macro = "Burst", "Rapid Fire" },            -- Shift+R  (every cooldown at once)
       { "Intimidation", "Counterattack", "Scatter Shot" },  -- Shift+T  build control
       { "Freezing Trap" },                          -- Shift+F
       { "Frost Trap" },                             -- Shift+G
       { racial = true },                            -- Shift+C
-      { "Feign Death" },                            -- Shift+V
+      { macro = "FD", "Feign Death" },              -- Shift+V
       { "Aspect of the Hawk" },                     -- Shift+1
       { "Aspect of the Monkey" },                   -- Shift+2
       { "Aspect of the Cheetah" },                  -- Shift+3
@@ -91,27 +92,27 @@ L.controller = {
         ["RT X"] = { macro = "Pull", "Serpent Sting" },
         ["RT B"] = { "Concussive Shot" },
         ["RT Y"] = { "Multi-Shot" },
-        ["RT Up"] = { macro = "Mark", "Hunter's Mark" },
+        ["RT Up"] = { macro = "Opener", "Hunter's Mark" },
         ["RT Right"] = { "Aimed Shot" },
         ["RT Left"] = { "Summon Hawk", "Sniper Shot" },
         ["RT Down"] = { "Explosive Trap", "Immolation Trap" },
-        ["LT A"] = { "Raptor Strike" },
+        ["LT A"] = { macro = "Melee", "Raptor Strike" },
         ["LT X"] = { "Mongoose Bite" },
         ["LT B"] = { "Wing Clip" },
         ["LT Y"] = { "Disengage" },
-        ["LT Up"] = { "Mend Pet" },
+        ["LT Up"] = { macro = "PetCare", "Mend Pet" },
         ["LT Down"] = { "Freezing Trap" },
         ["LT Left"] = { "Intimidation", "Counterattack", "Scatter Shot" },
         ["LT Right"] = { "Bestial Wrath", "Deterrence", "Trueshot Aura" },
         -- No trigger: radials (right stick picks) and out-of-combat basics.
         ["none Up"] = { flyout = 253, "Aspect of the Hawk" },        -- aspects
         ["none Left"] = { flyout = "Tracking", "Track Beasts" },      -- tracking
-        ["none Right"] = { macro = "Feed", covers = { "Feed Pet" } },
-        ["none Down"] = { macro = "Eat" },
-        ["LT+RT A"] = { "Feign Death" },
+        ["none Right"] = { "Feed Pet" },
+        ["none Down"] = { utility = 9 },   -- your best food (an item button)
+        ["LT+RT A"] = { macro = "FD", "Feign Death" },
         ["LT+RT X"] = { "Frost Trap" },
         ["LT+RT B"] = { racial = true },   -- War Stomp etc.; also on back button LT+R5
-        ["LT+RT Y"] = { "Rapid Fire" },
+        ["LT+RT Y"] = { macro = "Burst", "Rapid Fire" },
         ["LT+RT Up"] = { "Viper Sting" },
         ["LT+RT Down"] = { "Volley" },
         ["LT+RT Left"] = { "Flare" },
@@ -137,8 +138,8 @@ L.controller = {
         ["LT Left"] = { utility = 5 }, -- dynamite
         ["LT Right"] = { utility = 6 }, -- gadget
         -- No trigger, the first thing on this page: fishing and gathering.
-        ["none Up"] = { macro = "Fish" },
-        ["none Left"] = { overflow = true },
+        ["none Up"] = { macro = "Fish", "Fishing" },
+        ["none Left"] = { utility = 10 },  -- your best drink (an item button)
         ["none Right"] = { "Find Minerals", "Find Herbs" },
         ["none Down"] = { "Basic Campfire" },
         ["LT+RT A"] = { "Smelting" },
@@ -180,10 +181,10 @@ L.controller = {
     paddles = {
       ["L4"] = { macro = "PetToggle" },
       ["L5"] = { macro = "Recall" },
-      ["R4"] = { "Feign Death", "Disengage" },
+      ["R4"] = { macro = "FD", "Feign Death", "Disengage" },
       ["R5"] = { "Concussive Shot" },
       ["LT+L4"] = { "Intimidation", "Counterattack", "Scatter Shot" },
-      ["LT+L5"] = { "Bestial Wrath", "Deterrence", "Trueshot Aura" },
+      ["LT+L5"] = { macro = "Burst", "Rapid Fire", "Bestial Wrath" },
       ["LT+R4"] = { "Freezing Trap" },
       ["LT+R5"] = { racial = true },
     },

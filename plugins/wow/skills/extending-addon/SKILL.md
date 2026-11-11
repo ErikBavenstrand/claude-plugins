@@ -23,7 +23,7 @@ The addon source is in `${CLAUDE_PLUGIN_ROOT}/addon/Agentcraft`. Edit the copy t
 | `Modules/SnapshotMore.lua` | Sections readable at any time. Add one with `M.AddSection(name, fn)` |
 | `Modules/SnapshotCached.lua` | Data only readable with a window open or after a server reply. Store it with `M.SetCached(name, table)`, triggered from `M.On(event, fn)` |
 | `Modules/Controller.lua` | Fills the native Gamepad UI bars (3 pages; Top/Left LT/Right RT/Bottom LT+RT; D-pad and face diamonds) and binds Steam Deck back buttons (F13-F16, plus LT layer) from `Layout.lua`. Holds the entry resolver (spells, flyouts, macros, items, racials) that ActionBars reuses. Its header explains the Gamepad UI rules (fixed Top face buttons, flyouts as radials, Blizzard's pet radials) |
-| `Macros/Library.lua` | Macro library core: categories, `L.Add`, placeholders (`{PETFOOD}`, `{FOOD}`, `{DRINK}`, `{FISHINGPOLE}`, `{MAINHAND}`, `{OFFHAND?}`), install state, install, remove and pick up. Its header lists every macro field and the macro conventions |
+| `Macros/Library.lua` | Macro library core: categories, `L.Add`, placeholders (none in use: macros must name only spells and commands, never items, so they work forever once installed), install state, install, remove and pick up. Its header lists every macro field and the macro conventions |
 | `Macros/Data/*.lua` | Macro definitions: one file per class, plus `General.lua` and `Racial.lua`. Add a macro with `L.Add({...})`; add a new file to the TOC above `Macros\Page.lua` |
 | `Macros/Page.lua` | Library page: "For you"/"Everything" switch, search, tag chips, macro cards with tag pills, detail panel |
 

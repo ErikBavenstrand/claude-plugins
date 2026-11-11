@@ -30,7 +30,32 @@ L.Add({ name = "FDTrap", category = "combat", class = "HUNTER", order = 61, perC
   desc = "Traps can't be laid in combat. Press in combat to Feign Death (drops combat), press again to lay Freezing Trap. Your pet comes back to you.",
   body = "#showtooltip Freezing Trap\n/stopattack\n/petfollow\n/cast Freezing Trap\n/cast [combat] Feign Death" })
 
+L.Add({ name = "Opener", category = "combat", class = "HUNTER", order = 15, perCharacter = true, tags = { "opener", "controller" },
+  icon = "Hunter's Mark", requires = { "Hunter's Mark" },
+  desc = "Drops a dead or friendly target, picks the nearest enemy if you have none, then Hunter's Mark and Auto Shot. Your pet stays where it is.",
+  body = "#showtooltip Hunter's Mark\n/cleartarget [dead][help]\n/targetenemy [noexists]\n/cast Hunter's Mark\n/cast !Auto Shot" })
+
+L.Add({ name = "Melee", category = "combat", class = "HUNTER", order = 40, perCharacter = true, tags = { "melee", "controller" },
+  icon = "Raptor Strike", requires = { "Raptor Strike" }, untested = true,
+  desc = "Starts melee and uses whichever is ready: Counterattack (after a parry), Mongoose Bite (after a dodge), else Raptor Strike. Spells you don't know are skipped.",
+  body = "#showtooltip Raptor Strike\n/startattack\n/cast Counterattack\n/cast Mongoose Bite\n/cast Raptor Strike" })
+
+L.Add({ name = "Burst", category = "combat", class = "HUNTER", order = 50, perCharacter = true, tags = { "cooldown", "controller" },
+  icon = "Rapid Fire", untested = true,
+  desc = "Every damage cooldown at once: Bestial Wrath, both trinkets, Berserking or Blood Fury, then Rapid Fire. Anything you don't have is skipped.",
+  body = "#showtooltip Rapid Fire\n/cast Bestial Wrath\n/use 13\n/use 14\n/cast Berserking\n/cast Blood Fury\n/cast Rapid Fire" })
+
+L.Add({ name = "FD", category = "combat", class = "HUNTER", order = 60, perCharacter = true, tags = { "defensive", "controller" },
+  icon = "Feign Death", requires = { "Feign Death" },
+  desc = "A clean Feign Death: stops your cast and attacks, calls your pet back, then feigns.",
+  body = "#showtooltip Feign Death\n/stopcasting\n/stopattack\n/petfollow\n/cast Feign Death" })
+
 -- Pet --------------------------------------------------------------------------
+
+L.Add({ name = "PetCare", category = "pet", class = "HUNTER", order = 5, perCharacter = true, tags = { "controller" },
+  icon = "Mend Pet", requires = { "Mend Pet" }, untested = true,
+  desc = "Revives your pet if it's dead, calls it if it's missing, otherwise heals it with Mend Pet.",
+  body = "#showtooltip\n/cast [@pet,dead] Revive Pet; [nopet] Call Pet; Mend Pet" })
 -- Autocast toggles for every pet ability are generated on the controller
 -- (Controller.lua, { petauto = true }); on a keyboard, right-click the pet bar.
 
@@ -38,11 +63,6 @@ L.Add({ name = "PetToggle", category = "pet", class = "HUNTER", order = 6, perCh
   iconFile = "Ability_Hunter_BeastCall", tags = { "controller" },
   desc = "One button for your pet: attacks your target if it's idle, comes back if it's already fighting.",
   body = "/petfollow [@pettarget,exists]\n/petattack [@pettarget,noexists]" })
-
-L.Add({ name = "Feed", category = "pet", class = "HUNTER", order = 20, perCharacter = true,
-  icon = "Feed Pet", requires = { "Feed Pet" }, live = true, fallback = "No food your pet eats", fallbackWhen = "no food your pet eats",
-  desc = "Feeds your pet the best food for it: only what it eats, food you can't eat yourself first, and the cheapest that still makes it fully happy. The button shows that food and how many you have, and updates as your bags change.",
-  body = "#showtooltip {PETFOOD}\n/cast Feed Pet\n/use {PETFOOD}" })
 
 L.Add({ name = "Recall", category = "pet", class = "HUNTER", order = 40, perCharacter = true,
   iconFile = "Ability_Hunter_BeastCall",

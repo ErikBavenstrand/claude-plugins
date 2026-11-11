@@ -36,7 +36,7 @@ end
 -- Entry forms:
 --   { "Feign Death", "Disengage" }   first spell you know
 --   { flyout = 253 }                 spellbook flyout (a radial), by flyout ID or name
---   { macro = "Eat" }                an installed library macro (never installed for you)
+--   { macro = "Fish", "Fishing" }    an installed library macro (never installed for you), else the spell
 --   { utility = <ActionBars.utility entry> }  best matching item in your bags
 --   { racial = true }                your race's active racial
 local RACIALS = { "War Stomp", "Berserking", "Blood Fury", "Will of the Forsaken", "Stoneform",
@@ -170,7 +170,15 @@ function M.Resolve(entry, known, used)
     -- spell. The macro is used only if you installed it; otherwise the home
     -- gets the plain spell (the first spell listed, or the first one covered).
     local needs = entry[1]
-    if needs and not KnownID(needs, known) then return { missing = needs } end
+    if needs and not KnownID(needs, known) then
+      -- { macro = "FD", "Feign Death", "Disengage" }: until you know the
+      -- macro's spell, the next spell you know holds the home.
+      for i = 2, #entry do
+        local id = KnownID(entry[i], known)
+        if id then return { kind = "spell", id = id, name = entry[i] } end
+      end
+      return { missing = needs }
+    end
     if MacroIndex(entry.macro) then return { kind = "macro", name = entry.macro, installed = true } end
     local plain = needs or (entry.covers and entry.covers[1])
     local id = plain and KnownID(plain, known)
@@ -394,6 +402,11 @@ function M.Apply()
   for name, body in pairs(retired) do
     local i = GetMacroIndexByName(name)
     if i and i > 0 and (GetMacroBody(i) or ""):gsub("%s+$", "") == body then DeleteMacro(i) end
+  end
+  local shapes = ns.MacroLibrary and ns.MacroLibrary.retiredShapes or {}
+  for name, matches in pairs(shapes) do
+    local i = GetMacroIndexByName(name)
+    if i and i > 0 and matches((GetMacroBody(i) or ""):gsub("%s+$", "")) then DeleteMacro(i) end
   end
 
   -- Save the current layout once per apply, for undo.
