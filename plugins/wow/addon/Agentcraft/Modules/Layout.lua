@@ -23,6 +23,8 @@
 --   { racial = true }                 your race's active racial
 --   { macro = "Track", covers = { ... } } spells the macro already casts, so
 --                                     the controller catch-all skips them
+--   { petauto = true }                controller only: an autocast toggle for
+--                                     your pet's next autocastable ability
 --   { overflow = true }               controller only: a spell you know that
 --                                     has no other controller home
 local _, ns = ...
@@ -167,10 +169,12 @@ L.controller = {
         ["LT B"] = { overflow = true }, ["LT Y"] = { overflow = true },
         ["LT Up"] = { overflow = true }, ["LT Down"] = { overflow = true },
         ["LT Left"] = { overflow = true }, ["LT Right"] = { overflow = true },
-        ["LT+RT A"] = { overflow = true }, ["LT+RT X"] = { overflow = true },
-        ["LT+RT B"] = { overflow = true }, ["LT+RT Y"] = { overflow = true },
-        ["LT+RT Up"] = { overflow = true }, ["LT+RT Down"] = { overflow = true },
-        ["LT+RT Left"] = { overflow = true }, ["LT+RT Right"] = { overflow = true },
+        -- Your pet's abilities, one autocast on/off toggle each (the pet bar
+        -- shows a spinning border while autocast is on).
+        ["LT+RT A"] = { petauto = true }, ["LT+RT X"] = { petauto = true },
+        ["LT+RT B"] = { petauto = true }, ["LT+RT Y"] = { petauto = true },
+        ["LT+RT Up"] = { petauto = true }, ["LT+RT Down"] = { petauto = true },
+        ["LT+RT Left"] = { petauto = true }, ["LT+RT Right"] = { petauto = true },
       },
     },
     -- Steam Deck back buttons (F13-F16), plain and with LT held.

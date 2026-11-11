@@ -9,8 +9,8 @@ local L = ns.MacroLibrary
 L.Add({ name = "Fish", category = "fishing", profession = "Fishing", order = 10, icon = "Fishing",
   tags = { "controller", "gear" },
   modifiers = { "In combat: swaps straight back to your weapons" },
-  desc = "One button fishing: the first press equips your pole, the next ones fish. Agentcraft puts your weapons back when you stop.",
-  body = "#showtooltip Fishing\n/equip [combat] {MAINHAND?}\n/equip [combat] {OFFHAND?}\n/stopmacro [combat]\n/equip [noequipped:{POLETYPE}] {FISHINGPOLE}\n/cast [equipped:{POLETYPE}] Fishing" })
+  desc = "One button fishing: the first press equips your pole. While the pole has no lure and you carry one, the button shows the lure and puts it on; otherwise it fishes. Agentcraft puts your weapons back when you stop, and warns when the lure runs out.",
+  body = "#showtooltip {FISHICON}\n/equip [combat] {MAINHAND?}\n/equip [combat] {OFFHAND?}\n/stopmacro [combat]\n/equip [noequipped:{POLETYPE}] {FISHINGPOLE}\n/use [equipped:{POLETYPE}] {LURE?}\n/use [equipped:{POLETYPE}] {LURESLOT?}\n/cast [equipped:{POLETYPE}] {FISHSPELL?}" })
 
 L.Add({ name = "Lure", category = "fishing", profession = "Fishing", order = 15, icon = "Shiny Bauble",
   iconFile = "INV_Misc_Orb_03", tags = { "consumables" },

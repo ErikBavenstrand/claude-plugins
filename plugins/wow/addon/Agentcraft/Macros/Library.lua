@@ -252,7 +252,32 @@ local function Weapons()
 end
 L.Weapons = Weapons
 
+-- Fishing lures, best first (item ID, fishing bonus).
+L.lures = {
+  { 6533, 100 }, -- Aquadynamic Fish Attractor
+  { 6532, 75 },  -- Bright Baubles
+  { 7307, 75 },  -- Flesh Eating Worm
+  { 6530, 50 },  -- Nightcrawlers
+  { 6529, 25 },  -- Shiny Bauble
+}
+
+-- The lure to put on now: the best one in your bags, but only while the
+-- pole is in your hands without a lure on it. Otherwise nil.
+function L.LureNeeded()
+  if not IsPole(GetInventoryItemID("player", 16)) then return nil end
+  if GetWeaponEnchantInfo and GetWeaponEnchantInfo() then return nil end
+  for _, l in ipairs(L.lures) do
+    local count = C_Item and C_Item.GetItemCount and C_Item.GetItemCount(l[1]) or GetItemCount(l[1])
+    if count and count > 0 then return ItemName(l[1]) end
+  end
+end
+
 L.placeholders = {
+  -- Fish macro steps: the lure while one is needed, else Fishing.
+  LURE = function() return L.LureNeeded() end,
+  LURESLOT = function() return L.LureNeeded() and "16" or nil end,
+  FISHSPELL = function() if not L.LureNeeded() then return "Fishing" end end,
+  FISHICON = function() return L.LureNeeded() or "Fishing" end,
   PETFOOD = function()
     if not (C_PetInfo and C_PetInfo.CanPetEatItem) then return nil, "can't check pet food here" end
     if not UnitExists("pet") then return nil, "summon your pet" end

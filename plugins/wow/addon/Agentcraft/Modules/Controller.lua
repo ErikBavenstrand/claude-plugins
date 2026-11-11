@@ -85,6 +85,40 @@ local function FindFlyout(want)
   end
 end
 
+-- Pet abilities that can autocast, read from the pet bar. Remembered per
+-- character, so the toggle buttons stay while your pet is dismissed or dead.
+local function PetAutocast()
+  local list = {}
+  if UnitExists("pet") and GetPetActionInfo then
+    for i = 1, NUM_PET_ACTION_SLOTS or 10 do
+      local ok, name, texture, isToken, _, allowed = pcall(GetPetActionInfo, i)
+      if ok and name and not isToken and allowed then
+        list[#list + 1] = { name = name, icon = texture }
+      end
+    end
+    if #list > 0 then M.charDB.petAuto = list end
+  end
+  return #list > 0 and list or (M.charDB.petAuto or {})
+end
+
+-- A per-character macro that toggles a pet ability's autocast.
+local function PetToggleItem(a)
+  return { kind = "macro", name = ("Auto " .. a.name):sub(1, 16), icon = a.icon,
+    body = "#showtooltip " .. a.name .. "\n/petautocasttoggle " .. a.name }
+end
+
+-- Creates or updates a generated macro (item.body); returns its index.
+local function EnsureMacro(item)
+  local i = GetMacroIndexByName(item.name)
+  if i and i > 0 then
+    if GetMacroBody(i) ~= item.body then pcall(EditMacro, i, item.name, item.icon or "INV_Misc_QuestionMark", item.body) end
+    return i
+  end
+  local ok = pcall(CreateMacro, item.name, item.icon or "INV_Misc_QuestionMark", item.body, true)
+  i = ok and GetMacroIndexByName(item.name)
+  return i and i > 0 and i or nil
+end
+
 local function MacroIndex(name)
   local i = GetMacroIndexByName(name)
   if i and i > 0 then return i end
@@ -229,6 +263,7 @@ function M.Plan()
   local known = Known()
   local plan = { changes = 0, missing = 0 }
   local overflow, nextOverflow = OverflowSpells(layout.pages, known), 1
+  local petAuto, nextPet = PetAutocast(), 1
   for page, def in ipairs(layout.pages) do
     plan[page] = { title = def.title }
     local used = {}
@@ -241,6 +276,9 @@ function M.Plan()
           nextOverflow = nextOverflow + 1
           item = { kind = "spell", id = spell.id, name = spell.name }
         end
+      elseif entry.petauto then
+        local a = petAuto[nextPet]
+        if a then nextPet = nextPet + 1; item = PetToggleItem(a) end
       else
         item = M.Resolve(entry, known, used)
       end
@@ -293,7 +331,7 @@ local function Pickup(item)
   elseif item.kind == "flyout" then
     C_SpellBook.PickupSpellBookItem(item.index, Enum.SpellBookSpellBank.Player)
   elseif item.kind == "macro" then
-    local i = MacroIndex(item.name)
+    local i = item.body and EnsureMacro(item) or MacroIndex(item.name)
     if i then PickupMacro(i) end
   end
 end
