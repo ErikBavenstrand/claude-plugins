@@ -51,10 +51,6 @@ L.Add({ name = "Hearth", category = "utility", tags = { "travel" }, order = 20, 
   desc = "Uses your Hearthstone, with its cooldown on the button.",
   body = "#showtooltip Hearthstone\n/use Hearthstone" })
 
-L.Add({ name = "SellGrays", category = "utility", tags = { "vendor" }, order = 30, iconFile = "INV_Misc_Coin_02",
-  desc = "Sells every grey item in your bags. Press it with a vendor window open.",
-  body = "/run for b=0,4 do for s=1,C_Container.GetContainerNumSlots(b) do local i=C_Container.GetContainerItemInfo(b,s) if i and i.quality==0 and not i.hasNoValue then C_Container.UseContainerItem(b,s) end end end" })
-
 -- More utility macros. Sources: us.forums.blizzard.com/en/wow/t/hunter-macros-classic/306685,
 -- warcraft.wiki.gg Useful_macros.
 
@@ -73,21 +69,20 @@ L.Add({ name = "Reload", category = "utility", tags = { "interface", "controller
   desc = "Reloads the interface. Saves Agentcraft's snapshot and loads addon changes; handy without a keyboard.",
   body = "/reload" })
 
-L.Add({ name = "Repair", category = "utility", tags = { "vendor" }, order = 31, iconFile = "INV_Hammer_20",
-  desc = "Repairs all your gear. Press it with a repair vendor's window open.",
-  body = "/run if CanMerchantRepair() then RepairAllItems() end" })
-
 -- Retired macros: removed from /macro on the next controller Apply, but only
 -- while their text is still exactly what Agentcraft installed.
 L.retired = {
   Map = "/run ToggleWorldMap()",
   Chat = "/run ChatFrame_OpenChat(\"\")",
   MaxZoom = "/console cameraDistanceMaxZoomFactor 2.6",
+  -- The vendor window has Repair All and Sell All Junk buttons, the game menu
+  -- has Log Out, the party menu has Ready Check, and Steam takes screenshots.
+  SellGrays = "/run for b=0,4 do for s=1,C_Container.GetContainerNumSlots(b) do local i=C_Container.GetContainerItemInfo(b,s) if i and i.quality==0 and not i.hasNoValue then C_Container.UseContainerItem(b,s) end end end",
+  Repair = "/run if CanMerchantRepair() then RepairAllItems() end",
+  Screenshot = "/run Screenshot()",
+  ReadyCheck = "/readycheck",
+  Logout = "/camp",
 }
-
-L.Add({ name = "Screenshot", category = "utility", tags = { "controller", "interface" }, order = 73, iconFile = "INV_Misc_Spyglass_02",
-  desc = "Takes a screenshot (saved in the game's Screenshots folder).",
-  body = "/run Screenshot()" })
 
 L.Add({ name = "Focus", category = "utility", tags = { "group", "controller" }, order = 41, iconFile = "Ability_Hunter_SniperShot",
   desc = "Makes the enemy under your mouse (or your target) your focus, to keep an eye on it or mark it later.",
@@ -101,10 +96,3 @@ L.Add({ name = "Follow", category = "utility", tags = { "group", "travel", "cont
   desc = "Follows your target, for long runs with a friend.",
   body = "/follow" })
 
-L.Add({ name = "ReadyCheck", category = "utility", tags = { "group" }, order = 44, iconFile = "INV_Misc_Note_04",
-  desc = "Starts a ready check in your group.",
-  body = "/readycheck" })
-
-L.Add({ name = "Logout", category = "utility", tags = { "controller", "interface" }, order = 74, iconFile = "Spell_Nature_Sleep",
-  desc = "Logs out (camps) without opening the menu. Saves Agentcraft's snapshot.",
-  body = "/camp" })
