@@ -17,7 +17,7 @@
 --   * Homes for spells you haven't learned stay empty until you do.
 -- Entry forms (resolved in Controller.lua):
 --   { "Spell", "Alternative" }        first one you know
---   { macro = "Pull", "Serpent Sting" } the macro, once you know the spell
+--   { macro = "Pull", "Serpent Sting" } the macro if you installed it, else the spell
 --   { flyout = 253, "Aspect of the Hawk" } a spellbook flyout (radial on a controller)
 --   { utility = 2 }                   best item for ActionBars.utility[2]
 --   { item = "Hearthstone" }          that item, wherever it is in your bags

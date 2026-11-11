@@ -355,7 +355,7 @@ local function Apply()
   if #right > 12 or #right2 > 12 then ns.Print("side bars full; some spells stay in the spellbook.") end
 
   ns.Print("bars set for " .. class .. ". /ac spells undo to go back.")
-  if #missing > 0 then ns.Print("not learned yet (left empty): " .. table.concat(missing, ", ")) end
+  if #missing > 0 then ns.Print("left empty (not learned yet, or macro not installed): " .. table.concat(missing, ", ")) end
 end
 
 local function Undo()

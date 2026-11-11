@@ -36,7 +36,7 @@ end
 -- Entry forms:
 --   { "Feign Death", "Disengage" }   first spell you know
 --   { flyout = 253 }                 spellbook flyout (a radial), by flyout ID or name
---   { macro = "Eat" }                macro from the Agentcraft library (installed if needed)
+--   { macro = "Eat" }                an installed library macro (never installed for you)
 --   { utility = <ActionBars.utility entry> }  best matching item in your bags
 --   { racial = true }                your race's active racial
 local RACIALS = { "War Stomp", "Berserking", "Blood Fury", "Will of the Forsaken", "Stoneform",
@@ -134,19 +134,11 @@ local function EnsureMacro(item)
   return i and i > 0 and i or nil
 end
 
+-- Index of an installed macro. Applying a layout never installs library
+-- macros: which macros you use is your choice on the Macros page.
 local function MacroIndex(name)
   local i = GetMacroIndexByName(name)
   if i and i > 0 then return i end
-  local L = ns.MacroLibrary
-  if L then
-    for _, m in ipairs(L.macros) do
-      if m.name == name then
-        L.Install({ m })
-        i = GetMacroIndexByName(name)
-        return i and i > 0 and i or nil
-      end
-    end
-  end
 end
 
 -- Spell ID for a name you know. The class spellbook map misses profession
@@ -174,13 +166,16 @@ function M.Resolve(entry, known, used)
   end
   if entry.macro then
     -- { macro = "Pull", "Serpent Sting" }: the macro version of a spell's home.
-    -- It needs the spell; until you know it, the home stays empty like a plain spell.
+    -- It needs the spell; until you know it, the home stays empty like a plain
+    -- spell. The macro is used only if you installed it; otherwise the home
+    -- gets the plain spell (the first spell listed, or the first one covered).
     local needs = entry[1]
-    if not needs or KnownID(needs, known) then
-      local exists = GetMacroIndexByName(entry.macro)
-      return { kind = "macro", name = entry.macro, installed = exists and exists > 0 }
-    end
-    return { missing = needs }
+    if needs and not KnownID(needs, known) then return { missing = needs } end
+    if MacroIndex(entry.macro) then return { kind = "macro", name = entry.macro, installed = true } end
+    local plain = needs or (entry.covers and entry.covers[1])
+    local id = plain and KnownID(plain, known)
+    if id then return { kind = "spell", id = id, name = plain } end
+    return { missing = entry.macro .. " macro", macro = entry.macro }
   end
   if entry.item then
     -- { item = "Hearthstone" }: that item, wherever it sits in your bags.
@@ -437,7 +432,7 @@ function M.Apply()
   end
   SaveBindings(GetCurrentBindingSet())
   ns.Print(string.format("controller layout applied (%d changes). /ac controller undo to go back.", placed))
-  if plan.missing > 0 then ns.Print(plan.missing .. " planned buttons wait for spells or items you don't have yet.") end
+  if plan.missing > 0 then ns.Print(plan.missing .. " planned buttons wait for spells or items you don't have yet, or macros you haven't installed.") end
 end
 
 function M.Undo()
@@ -484,7 +479,7 @@ local function FillSlot(s, p)
   if p.item.missing then
     s:SetIcon(UI.SpellIcon(p.item.missing) or UI.QUESTION, true)
     s:SetMark(UI.RED)
-    s:SetTip({ title = p.item.missing, text = "Reserved for when you learn or carry it. Apply again then.", color = UI.RED })
+    s:SetTip({ title = p.item.missing, text = p.item.macro and ("Install " .. p.item.macro .. " on the Macros page, then Apply again.") or "Reserved for when you learn or carry it. Apply again then.", color = UI.RED })
     return
   end
   s:SetIcon(Icon(p.item))
@@ -575,7 +570,7 @@ local page = ns.RegisterPage({
       if pp then
         if pp.item.missing then
           s:SetIcon(UI.SpellIcon(pp.item.missing) or UI.QUESTION, true); s:SetMark(UI.RED)
-          s:SetTip({ title = pp.item.missing, text = "Bound once you learn it.", color = UI.RED })
+          s:SetTip({ title = pp.item.missing, text = pp.item.macro and ("Install " .. pp.item.macro .. " on the Macros page, then Apply again.") or "Bound once you learn it.", color = UI.RED })
         else
           s:SetIcon(Icon(pp.item)); s:SetMark(pp.state == "new" and UI.GREEN or nil)
           s:SetTip({ title = p .. ": " .. pp.item.name, text = "Key " .. pp.binding, color = { 0.8, 0.8, 0.8 } })
