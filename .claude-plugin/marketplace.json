@@ -14,7 +14,7 @@
     },
     {
       "name": "wow",
-      "source": "./plugins/wow",
+      "source": { "source": "github", "repo": "ErikBavenstrand/agentcraft" },
       "description": "Read your World of Warcraft character from disk and build on the bundled Agentcraft addon."
     }
   ]

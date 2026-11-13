@@ -1,7 +1,0 @@
-{
-  "name": "wow",
-  "description": "Read your World of Warcraft character from disk (gear, talents, pet, bags, quests, keybinds, logs) and build on the bundled Agentcraft addon.",
-  "author": {
-    "name": "Erik Båvenstrand"
-  }
-}

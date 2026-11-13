@@ -21,14 +21,7 @@ Package names below are Homebrew formulae. On Linux, use the distro's package ma
 
 ### wow
 
-Lets Claude read your World of Warcraft character and help you play it. Bundles the Agentcraft addon, which writes your full character state to disk on every `/reload` and logout, and adds an in-game window (`/ac`) for laying out action bars and keybinds.
-
-- Skill `reading-game-state`: reads gear, stats, talents, spells, pet, bags, quests, reputation, keybinds, any addon's saved data, Lua errors and combat logs.
-- Skill `installing-addon`: installs or updates Agentcraft in your WoW folder.
-- Skill `extending-addon`: Agentcraft's structure and client API gotchas, for adding features.
-- Script `scripts/wowdata.ps1`: the reader the skills run. Needs only Windows PowerShell; on macOS use PowerShell 7 (`pwsh`).
-
-After installing the plugin, ask Claude to install the addon, then type `/reload` twice in game.
+Lets Claude read your World of Warcraft character and help you play it, with the bundled Agentcraft addon. It lives in its own repo, [ErikBavenstrand/agentcraft](https://github.com/ErikBavenstrand/agentcraft); this marketplace lists it from there.
 
 ## Install plugins
 
