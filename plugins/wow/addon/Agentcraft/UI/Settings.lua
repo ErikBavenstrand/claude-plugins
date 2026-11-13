@@ -25,7 +25,12 @@ ns.RegisterPage({
       local desc = UI.Text(cb, mod.description or "", "GameFontDisableSmall")
       desc:SetPoint("LEFT", name, "RIGHT", 8, 0)
       cb:SetScript("OnClick", function(self)
-        ns.SetModuleEnabled(mod, self:GetChecked() and true or false)
+        local on = self:GetChecked() and true or false
+        -- RunAction logs the result, catches errors and refreshes the header
+        -- count and the checkbox (back to off if the module failed to start).
+        UI.RunAction(function()
+          if ns.SetModuleEnabled(mod, on) then ns.Print(mod.name .. (on and " enabled" or " disabled")) end
+        end)
       end)
       cb.mod = mod
       table.insert(page.checks, cb)

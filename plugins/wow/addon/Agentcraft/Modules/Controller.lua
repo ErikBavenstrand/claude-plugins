@@ -14,7 +14,12 @@
 --     slots for spells you haven't learned stay empty; Apply again after
 --     training to move new spells to their planned button.
 -- Back buttons: Steam Input maps L4, L5, R4, R5 to F13-F16; this module binds
--- those keys (and LT+key, since LT emulates Shift) to spells and macros.
+-- those keys (and LT+key, since LT emulates Shift) to spells, macros and
+-- items. They are plain key bindings, so they bind without the Gamepad UI.
+-- Apply never creates macros. It first deletes retired Agentcraft macros you
+-- never edited and unbinds their keys. Petauto buttons use the library's
+-- "Auto <ability>" macros only once you've installed them.
+-- A back button with no home in the layout is unbound by Apply.
 local _, ns = ...
 local UI = ns.UI
 local M = ns.RegisterModule("Controller", {
@@ -57,7 +62,9 @@ local KnownID -- defined below
 -- The class layout lives in Layout.lua, shared with the keyboard bars.
 local function Layout()
   local _, class = UnitClass("player")
-  local pages, paddles = ns.Layout and ns.Layout.ControllerPages(class)
+  -- Not `ns.Layout and ControllerPages(class)`: `and` keeps only the first return.
+  local pages, paddles
+  if ns.Layout then pages, paddles = ns.Layout.ControllerPages(class) end
   if not pages then return nil, class end
   return { pages = pages, paddles = paddles }, class
 end
@@ -116,22 +123,18 @@ local function PetAutocast()
   return #list > 0 and list or (M.charDB.petAuto or {})
 end
 
--- A per-character macro that toggles a pet ability's autocast.
+-- The library's autocast toggle for a pet ability (Macros/Data/Hunter.lua,
+-- petAbility). Used only once you've installed it on the Macros page.
 local function PetToggleItem(a)
-  return { kind = "macro", name = ("Auto " .. a.name):sub(1, 16), icon = a.icon,
-    body = "#showtooltip " .. a.name .. "\n/petautocasttoggle " .. a.name }
-end
-
--- Creates or updates a generated macro (item.body); returns its index.
-local function EnsureMacro(item)
-  local i = GetMacroIndexByName(item.name)
-  if i and i > 0 then
-    if GetMacroBody(i) ~= item.body then pcall(EditMacro, i, item.name, item.icon or "INV_Misc_QuestionMark", item.body) end
-    return i
+  local lib = ns.MacroLibrary
+  for _, m in ipairs(lib and lib.macros or {}) do
+    if m.petAbility == a.name then
+      local i = GetMacroIndexByName(m.name)
+      if i and i > 0 then return { kind = "macro", name = m.name, icon = a.icon } end
+      return { missing = m.name .. ": install it on the Macros page" }
+    end
   end
-  local ok = pcall(CreateMacro, item.name, item.icon or "INV_Misc_QuestionMark", item.body, true)
-  i = ok and GetMacroIndexByName(item.name)
-  return i and i > 0 and i or nil
+  return { missing = a.name .. ": no autocast macro in the library" }
 end
 
 -- Index of an installed macro. Applying a layout never installs library
@@ -165,7 +168,7 @@ function M.Resolve(entry, known, used)
     return { missing = "racial" }
   end
   if entry.macro then
-    -- { macro = "Pull", "Serpent Sting" }: the macro version of a spell's home.
+    -- { macro = "Arcane", "Arcane Shot" }: the macro version of a spell's home.
     -- It needs the spell; until you know it, the home stays empty like a plain
     -- spell. The macro is used only if you installed it; otherwise the home
     -- gets the plain spell (the first spell listed, or the first one covered).
@@ -242,17 +245,21 @@ local function Storage(page, slotID)
 end
 
 -- Spells never offered by the catch-all: always-on or handled by the UI.
-local OVERFLOW_SKIP = { ["Attack"] = true, ["Auto Shot"] = true, ["Shoot"] = true, ["Throw"] = true, ["Cultivation"] = true }
+local OVERFLOW_SKIP = { ["Attack"] = true, ["Auto Attack"] = true, ["Auto Shot"] = true, ["Shoot"] = true, ["Throw"] = true, ["Cultivation"] = true }
 
 -- Known spells with no controller home (and not inside a placed flyout),
 -- alphabetically, for the { overflow = true } buttons.
 local function OverflowSpells(pages, known)
   local placed = {}
   for _, def in ipairs(pages) do
-    for key, entry in pairs(def) do
-      if key ~= "title" and not entry.overflow then
-        local item = M.Resolve(entry, known)
-        if item.kind == "spell" then placed[item.id] = true end
+    -- Same order and per-page `used` as M.Plan, so both pick the same
+    -- alternative from a list home.
+    local used = {}
+    for _, key in ipairs(PriorityKeys(def)) do
+      local entry = def[key]
+      if not entry.overflow and not entry.petauto then
+        local item = M.Resolve(entry, known, used)
+        if item.kind == "spell" then placed[item.id] = true; used[item.id] = true end
         if item.kind == "flyout" and GetFlyoutInfo then
           local _, _, numSlots = GetFlyoutInfo(item.id)
           for s = 1, numSlots or 0 do
@@ -322,9 +329,19 @@ function M.Plan()
           if state == "new" then plan.changes = plan.changes + 1 end
         else
           plan.missing = plan.missing + 1
+          -- Apply clears whatever sits in a home that waits for its spell.
+          if item.missing and slot and HasAction(slot) then
+            state = "clear"
+            plan.changes = plan.changes + 1
+          end
         end
         plan[page][slotID] = { key = key, entry = entry, item = item, slot = slot, state = state }
       end
+    end
+    -- Apply also clears slots outside the layout that hold something.
+    for slotID = 1, 32 do
+      local slot = not plan[page][slotID] and Storage(page, slotID)
+      if slot and HasAction(slot) then plan.changes = plan.changes + 1 end
     end
   end
   plan.unplaced = #overflow - (nextOverflow - 1)
@@ -332,14 +349,33 @@ function M.Plan()
   local paddleUsed = {}
   for _, p in ipairs(PADDLE_ORDER) do
     local entry = layout.paddles and layout.paddles[p]
-    if entry then
-      local item = M.Resolve(entry, known, paddleUsed)
+    do
+      local item
+      if not entry then
+        item = { missing = "no home" }
+      elseif entry.petauto or entry.overflow then
+        item = { missing = "not on back buttons" }
+      else
+        item = M.Resolve(entry, known, paddleUsed)
+        -- A key binding can't open a radial: back buttons take spells, items and macros.
+        if item.kind == "flyout" then item = { missing = item.name .. ": not on back buttons" } end
+      end
       if item.kind == "spell" then paddleUsed[item.id] = true end
       local binding = PaddleBinding(p)
-      local current = GetBindingAction(binding)
-      local want = item.missing and "" or (item.kind == "macro" and ("MACRO " .. item.name) or ("SPELL " .. item.name))
-      plan.paddles[p] = { item = item, binding = binding, state = item.missing and "missing" or (current == want and "same" or "new") }
-      if plan.paddles[p].state == "new" then plan.changes = plan.changes + 1 end
+      local current = GetBindingAction(binding) or ""
+      local want = ""
+      if not item.missing then
+        want = (item.kind == "macro" and "MACRO " or item.kind == "item" and "ITEM " or "SPELL ") .. item.name
+      end
+      local state
+      if item.missing then
+        -- Apply unbinds the key (a stale MACRO binding included).
+        state = current ~= "" and "clear" or "missing"
+      else
+        state = current == want and "same" or "new"
+      end
+      plan.paddles[p] = { item = item, binding = binding, current = current, state = state }
+      if state == "new" or state == "clear" then plan.changes = plan.changes + 1 end
     end
   end
   return plan, class
@@ -356,7 +392,7 @@ local function Pickup(item)
   elseif item.kind == "flyout" then
     C_SpellBook.PickupSpellBookItem(item.index, Enum.SpellBookSpellBank.Player)
   elseif item.kind == "macro" then
-    local i = item.body and EnsureMacro(item) or MacroIndex(item.name)
+    local i = MacroIndex(item.name)
     if i then PickupMacro(i) end
   end
 end
@@ -391,36 +427,53 @@ local function ManagedSlots(plan)
   return slots
 end
 
+-- Deletes retired Agentcraft macros you never edited, and unbinds keys bound
+-- to them. A name the library still offers is left alone: the Macros page
+-- shows it as "Update" instead.
+local function DeleteRetired()
+  local lib = ns.MacroLibrary
+  local live = {}
+  for _, m in ipairs(lib and lib.macros or {}) do live[m.name] = true end
+  local function Delete(name, i)
+    if GetBindingKey then
+      for _, k in ipairs({ GetBindingKey("MACRO " .. name) }) do SetBinding(k) end
+    end
+    DeleteMacro(i)
+  end
+  for name, body in pairs(lib and lib.retired or {}) do
+    local i = not live[name] and GetMacroIndexByName(name)
+    if i and i > 0 and (GetMacroBody(i) or ""):gsub("%s+$", "") == body then Delete(name, i) end
+  end
+  for name, matches in pairs(lib and lib.retiredShapes or {}) do
+    local i = not live[name] and GetMacroIndexByName(name)
+    if i and i > 0 and matches((GetMacroBody(i) or ""):gsub("%s+$", "")) then Delete(name, i) end
+  end
+end
+
 function M.Apply()
   if InCombatLockdown() then return ns.Print("can't change controller bars in combat.") end
-  if not Util() then return ns.Print("turn on the Gamepad UI first (Options > Gameplay > Gamepad).") end
-  local plan, class = M.Plan()
-  if not plan then return ns.Print("no controller layout for " .. tostring(class) .. " yet.") end
-
-  -- Delete retired Agentcraft macros you never edited.
-  local retired = ns.MacroLibrary and ns.MacroLibrary.retired or {}
-  for name, body in pairs(retired) do
-    local i = GetMacroIndexByName(name)
-    if i and i > 0 and (GetMacroBody(i) or ""):gsub("%s+$", "") == body then DeleteMacro(i) end
-  end
-  local shapes = ns.MacroLibrary and ns.MacroLibrary.retiredShapes or {}
-  for name, matches in pairs(shapes) do
-    local i = GetMacroIndexByName(name)
-    if i and i > 0 and matches((GetMacroBody(i) or ""):gsub("%s+$", "")) then DeleteMacro(i) end
-  end
+  local layout, layoutClass = Layout()
+  if not layout then return ns.Print("no controller layout for " .. tostring(layoutClass) .. " yet.") end
+  -- Before planning, so a home whose macro goes gets its plain spell now.
+  DeleteRetired()
+  local plan = M.Plan()
+  -- Back buttons are plain key bindings and work without the Gamepad UI.
+  local bars = Util() ~= nil
 
   -- Save the current layout once per apply, for undo.
-  local backup = { slots = {}, binds = {} }
-  for _, slot in ipairs(ManagedSlots(plan)) do
-    local t, id = GetActionInfo(slot)
-    if t then backup.slots[slot] = { t, id, t == "macro" and GetActionText(slot) or nil } end
+  local backup = { slots = {}, binds = {}, noBars = not bars or nil }
+  if bars then
+    for _, slot in ipairs(ManagedSlots(plan)) do
+      local t, id = GetActionInfo(slot)
+      if t then backup.slots[slot] = { t, id, t == "macro" and GetActionText(slot) or nil } end
+    end
   end
   for _, p in pairs(plan.paddles) do backup.binds[p.binding] = GetBindingAction(p.binding) end
   M.charDB.backup = backup
 
   ClearCursor()
   local placed = 0
-  for page = 1, #plan do
+  for page = 1, bars and #plan or 0 do
     for slotID = 1, 32 do
       local s = Storage(page, slotID)
       local want = plan[page][slotID]
@@ -440,12 +493,35 @@ function M.Apply()
     SetBinding(p.binding)
     if not p.item.missing then
       if p.item.kind == "macro" then MacroIndex(p.item.name); SetBindingMacro(p.binding, p.item.name)
+      elseif p.item.kind == "item" then SetBinding(p.binding, "ITEM " .. p.item.name)
       else SetBindingSpell(p.binding, p.item.name) end
     end
   end
   SaveBindings(GetCurrentBindingSet())
+  if not bars then
+    return ns.Print("back buttons bound; bars skipped: turn on the Gamepad UI first (Options > Gameplay > Gamepad).")
+  end
   ns.Print(string.format("controller layout applied (%d changes). /ac controller undo to go back.", placed))
   if plan.missing > 0 then ns.Print(plan.missing .. " planned buttons wait for spells or items you don't have yet, or macros you haven't installed.") end
+end
+
+-- Puts a saved action back on the cursor; false if it can't be restored.
+local function PickupSaved(t, id, text)
+  if t == "spell" then Pickup({ kind = "spell", id = id })
+  elseif t == "item" then Pickup({ kind = "item", id = id })
+  elseif t == "macro" then local i = MacroIndex(text or "") if i then PickupMacro(i) end
+  elseif t == "flyout" then local index = FindFlyout(id) if index then Pickup({ kind = "flyout", index = index }) end
+  elseif t == "equipmentset" and C_EquipmentSet and C_EquipmentSet.PickupEquipmentSet and C_EquipmentSet.GetEquipmentSetID then
+    local setID = C_EquipmentSet.GetEquipmentSetID(id)
+    if setID then C_EquipmentSet.PickupEquipmentSet(setID) end
+  elseif t == "summonmount" and C_MountJournal and C_MountJournal.Pickup and C_MountJournal.GetDisplayedMountID then
+    for i = 1, C_MountJournal.GetNumDisplayedMounts and C_MountJournal.GetNumDisplayedMounts() or 0 do
+      if C_MountJournal.GetDisplayedMountID(i) == id then C_MountJournal.Pickup(i); break end
+    end
+  elseif t == "summonpet" and C_PetJournal and C_PetJournal.PickupPet then
+    pcall(C_PetJournal.PickupPet, id)
+  end
+  return GetCursorInfo() ~= nil
 end
 
 function M.Undo()
@@ -453,28 +529,31 @@ function M.Undo()
   local backup = M.charDB.backup
   if not backup then return ns.Print("nothing to undo.") end
   ClearCursor()
-  local plan = M.Plan() or { 1, 2, 3 }
-  for _, slot in ipairs(ManagedSlots(plan)) do
-    if HasAction(slot) then PickupAction(slot); ClearCursor() end
-    local saved = backup.slots[slot]
-    if saved then
-      local t, id, text = saved[1], saved[2], saved[3]
-      if t == "spell" then Pickup({ kind = "spell", id = id })
-      elseif t == "item" then Pickup({ kind = "item", id = id })
-      elseif t == "macro" then local i = GetMacroIndexByName(text or "") if i and i > 0 then PickupMacro(i) end
-      elseif t == "flyout" then local index = FindFlyout(id) if index then Pickup({ kind = "flyout", index = index }) end
+  local lost = {}
+  -- An apply without the Gamepad UI saved no slots: leave the bars alone.
+  if not backup.noBars then
+    local plan = M.Plan() or { 1, 2, 3 }
+    for _, slot in ipairs(ManagedSlots(plan)) do
+      if HasAction(slot) then PickupAction(slot); ClearCursor() end
+      local saved = backup.slots[slot]
+      if saved then
+        local t, id, text = saved[1], saved[2], saved[3]
+        if PickupSaved(t, id, text) then PlaceAction(slot) else lost[#lost + 1] = text or tostring(t) end
+        ClearCursor()
       end
-      if GetCursorInfo() then PlaceAction(slot) end
-      ClearCursor()
     end
   end
   for key, action in pairs(backup.binds) do
     SetBinding(key)
-    if action and action ~= "" then SetBinding(key, action) end
+    -- Never re-bind a key to a macro that's gone (Apply may have retired it).
+    local macro = action and action:match("^MACRO (.+)$")
+    if macro and not MacroIndex(macro) then lost[#lost + 1] = key .. " (macro " .. macro .. ")"
+    elseif action and action ~= "" then SetBinding(key, action) end
   end
   SaveBindings(GetCurrentBindingSet())
   M.charDB.backup = nil
   ns.Print("controller layout restored.")
+  if #lost > 0 then ns.Print("couldn't put back: " .. table.concat(lost, ", ") .. ".") end
 end
 
 -- Window page ----------------------------------------------------------------------
@@ -491,8 +570,10 @@ local function FillSlot(s, p)
   if not p then s:SetIcon(nil); s:SetTip({ title = "Free" , text = "Not in the layout. Blizzard may drop new spells here." , color = { 0.7, 0.7, 0.7 } }); return end
   if p.item.missing then
     s:SetIcon(UI.SpellIcon(p.item.missing) or UI.QUESTION, true)
-    s:SetMark(UI.RED)
-    s:SetTip({ title = p.item.missing, text = p.item.macro and ("Install " .. p.item.macro .. " on the Macros page, then Apply again.") or "Reserved for when you learn or carry it. Apply again then.", color = UI.RED })
+    s:SetMark(p.state == "clear" and UI.ORANGE or UI.RED)
+    local text = p.item.macro and ("Install " .. p.item.macro .. " on the Macros page, then Apply again.") or "Reserved for when you learn or carry it. Apply again then."
+    if p.state == "clear" then text = text .. " Apply clears what's here now." end
+    s:SetTip({ title = p.item.missing, text = text, color = UI.RED })
     return
   end
   s:SetIcon(Icon(p.item))
@@ -503,7 +584,7 @@ local function FillSlot(s, p)
   s:SetTip(tip)
 end
 
-local page = ns.RegisterPage({
+ns.RegisterPage({
   id = "controller",
   title = "Controller",
   icon = "Interface\\Icons\\INV_Gizmo_02",
@@ -582,8 +663,10 @@ local page = ns.RegisterPage({
       local pp = plan.paddles[p]
       if pp then
         if pp.item.missing then
-          s:SetIcon(UI.SpellIcon(pp.item.missing) or UI.QUESTION, true); s:SetMark(UI.RED)
-          s:SetTip({ title = pp.item.missing, text = pp.item.macro and ("Install " .. pp.item.macro .. " on the Macros page, then Apply again.") or "Bound once you learn it.", color = UI.RED })
+          s:SetIcon(UI.SpellIcon(pp.item.missing) or UI.QUESTION, true); s:SetMark(pp.state == "clear" and UI.ORANGE or UI.RED)
+          local text = pp.item.macro and ("Install " .. pp.item.macro .. " on the Macros page, then Apply again.") or "Bound once you learn it."
+          if pp.state == "clear" then text = text .. " Apply unbinds " .. pp.binding .. " (now " .. pp.current .. ")." end
+          s:SetTip({ title = pp.item.missing, text = text, color = UI.RED })
         else
           s:SetIcon(Icon(pp.item)); s:SetMark(pp.state == "new" and UI.GREEN or nil)
           s:SetTip({ title = p .. ": " .. pp.item.name, text = "Key " .. pp.binding, color = { 0.8, 0.8, 0.8 } })

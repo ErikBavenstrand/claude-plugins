@@ -15,12 +15,17 @@ local function HasTemplate(name)
 end
 
 local function Refresh()
-  if not current then return end
+  if not current or not current.frame then return end -- not built (Build failed)
   if current.Refresh then
     local ok, err = pcall(current.Refresh, current)
     if not ok then status:SetText("|cffff4444error:|r " .. tostring(err)) end
   end
-  summary:SetText(current.Status and current:Status() or "")
+  local text = ""
+  if current.Status then
+    local ok, s = pcall(current.Status, current)
+    if ok then text = s or "" else status:SetText("|cffff4444error:|r " .. tostring(s)) end
+  end
+  summary:SetText(text)
 end
 
 -- Footer shows everything the action printed, on one line (full text is in
@@ -60,12 +65,20 @@ local function Select(page)
   if current and current.frame then current.frame:Hide() end
   if current and current.footerFrame then current.footerFrame:Hide() end
   current = page
+  local buildErr
   if not page.frame then
     page.frame = CreateFrame("Frame", nil, body)
     page.frame:SetAllPoints()
-    if page.Build then page:Build(page.frame) end
+    if page.Build then
+      local ok, err = pcall(page.Build, page, page.frame)
+      if not ok then
+        -- Drop the half-built frame so the next visit builds it again.
+        page.frame:Hide()
+        page.frame, buildErr = nil, err
+      end
+    end
   end
-  page.frame:Show()
+  if page.frame then page.frame:Show() end
   local f = FooterFor(page)
   f:Show()
   status:SetPoint("RIGHT", f, "LEFT", -12, 0)
@@ -74,6 +87,11 @@ local function Select(page)
     b.sel:SetShown(p == page)
     b.bar:SetShown(p == page)
     b.label:SetFontObject(p == page and "GameFontHighlight" or "GameFontNormal")
+  end
+  if buildErr then
+    status:SetText("|cffff4444error:|r " .. tostring(buildErr))
+    summary:SetText("")
+    return
   end
   status:SetText("")
   Refresh()
@@ -223,6 +241,6 @@ ns.RegisterCommand("help", "list slash commands", function()
   for name in pairs(ns.commands) do table.insert(names, name) end
   table.sort(names)
   for _, name in ipairs(names) do
-    print("  /ac " .. name .. " - " .. ns.commands[name].help)
+    ns.Out("  /ac " .. name .. " - " .. ns.commands[name].help)
   end
 end)

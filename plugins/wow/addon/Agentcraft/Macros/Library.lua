@@ -4,7 +4,7 @@
 --
 -- Adding a macro (in a Data file):
 --   L.Add({
---     name = "Pull",              -- shown on the action button; 16 characters max
+--     name = "Opener",            -- shown on the action button; 16 characters max
 --     category = "combat",        -- a key from L.categories
 --     class = "HUNTER",           -- omit for every class
 --     race = "Tauren",            -- race file name (Scourge = Undead, NightElf); omit for every race
@@ -16,7 +16,6 @@
 --     perCharacter = true,        -- character tab (class macros) or account tab
 --     untested = true,            -- shows a warning: not yet confirmed on this game version
 --     desc = "One sentence: what pressing it does.",
---     modifiers = { "Shift: ...", "Ctrl: ..." },
 --     body = "#showtooltip ...\n/cast ...",   -- 255 characters max after filling
 --   })
 --
@@ -26,7 +25,10 @@
 --     an item (food, pole, weapon, potion). Items go on bars as item buttons.
 --   * No Shift/Ctrl variants (they are bar layers) and no @mouseover/@cursor.
 --   * Harmful casts use [@target,harm,nodead] so they never hit friends or corpses.
---   * Name it after what it does, one word where possible ("Pull", "Fish").
+--   * Name it after what it does, one word where possible ("Opener", "Fish").
+--   * Install and Remove touch only macros Agentcraft wrote (bodies recorded
+--     in AgentcraftDB.macroBodies). A player's own macro of the same name is
+--     "taken" until they pick Replace. Remove also unbinds the macro's keys.
 local _, ns = ...
 local L = {}
 ns.MacroLibrary = L
@@ -108,11 +110,12 @@ end
 local function MyProfessions()
   local have = {}
   if GetProfessions then
-    for _, idx in ipairs({ GetProfessions() }) do
-      if idx then
-        local name = GetProfessionInfo(idx)
-        if name then have[name] = true end
-      end
+    -- Any of the five can be nil (no second primary, no First Aid...), and
+    -- ipairs stops at the first nil, so take them by name.
+    local a, b, c, d, e = GetProfessions()
+    for _, idx in pairs({ a, b, c, d, e }) do
+      local name = GetProfessionInfo(idx)
+      if name then have[name] = true end
     end
   end
   return have, GetProfessions ~= nil
@@ -228,7 +231,7 @@ local function Weapons()
   local saved = ns.charDB and ns.charDB.weapons
   if saved then return saved.main, saved.off end
   -- Never seen: take the first main-hand weapon and off-hand item in your bags.
-  local main, off
+  main, off = nil, nil
   for _, id in ipairs(BagItemIDs()) do
     local _, _, _, equipLoc, _, classID = C_Item.GetItemInfoInstant(id)
     if not main and classID == 2 and not IsPole(id) and (equipLoc == "INVTYPE_WEAPON"
@@ -284,9 +287,39 @@ local function IndexOf(name)
   return 0
 end
 
+local function Trim(s) return (s or ""):gsub("%s+$", "") end
+
+-- Bodies Agentcraft wrote, by macro name (account SavedVariables), so a macro
+-- of yours that happens to share a library name is never overwritten or deleted.
+local function Written()
+  if not ns.db then return {} end
+  ns.db.macroBodies = ns.db.macroBodies or {}
+  return ns.db.macroBodies
+end
+
+-- Whether the macro at index is one Agentcraft wrote.
+local function IsOurs(m, index, legacy, body)
+  if legacy then return true end
+  local current = Trim(GetMacroBody(index))
+  if body and current == Trim(body) then
+    Written()[m.name] = current
+    return true
+  end
+  -- An older Agentcraft text of a macro that kept its name (L.retired) is ours too.
+  return Written()[m.name] == current or (L.retired and L.retired[m.name] == current) or false
+end
+
+-- A class or racial macro sitting in the shared account tab (installed
+-- before it was marked perCharacter). EditMacro can't move it between tabs.
+local function InWrongTab(m, index)
+  return m.perCharacter and index <= (MAX_ACCOUNT_MACROS or 120)
+end
+
 -- Returns state, index, detail. States:
 --   installed  in /macro and up to date
 --   update     in /macro but its text differs (spell or item changed)
+--   taken      a macro of yours already has this name; left alone unless
+--              you pick Replace on that macro
 --   blocked    can't be installed yet; detail says why
 --   ready      can be installed
 function L.State(m)
@@ -294,8 +327,8 @@ function L.State(m)
   local body, why = L.Resolve(m)
   local missing = L.MissingSpell(m)
   if index > 0 then
-    local current = (GetMacroBody(index) or ""):gsub("%s+$", "")
-    if legacy or (body and current ~= body:gsub("%s+$", "")) then return "update", index end
+    if not IsOurs(m, index, legacy, body) then return "taken", index, "your own macro has this name" end
+    if legacy or InWrongTab(m, index) or (body and Trim(GetMacroBody(index)) ~= Trim(body)) then return "update", index end
     return "installed", index
   end
   if missing then return "blocked", 0, "learn " .. missing end
@@ -305,22 +338,39 @@ end
 
 local function IconFor(m) return m.iconFile or "INV_Misc_QuestionMark" end
 
-function L.Install(list)
+-- replace = true also overwrites a macro of yours with the same name (the
+-- detail panel's Replace button); ticked installs never do.
+function L.Install(list, replace)
   if InCombatLockdown() then return ns.Print("can't change macros in combat.") end
   local done, skipped = {}, {}
   for _, m in ipairs(list) do
     local body, why = L.Resolve(m)
-    if not body then
+    local missing = L.MissingSpell(m)
+    local index, legacy = IndexOf(m.name)
+    if missing then
+      skipped[#skipped + 1] = m.name .. " (learn " .. missing .. ")"
+    elseif not body then
       skipped[#skipped + 1] = m.name .. " (" .. why .. ")"
+    elseif index > 0 and not replace and not IsOurs(m, index, legacy, body) then
+      skipped[#skipped + 1] = m.name .. " (your own macro has this name)"
     else
-      local index = IndexOf(m.name)
       local ok, err
+      if index > 0 and InWrongTab(m, index) then
+        -- Recreate it in the character tab; put it back on your bar after.
+        DeleteMacro(index)
+        index = 0
+      end
       if index > 0 then
         ok, err = pcall(EditMacro, index, m.name, IconFor(m), body)
       else
         ok, err = pcall(CreateMacro, m.name, IconFor(m), body, m.perCharacter and true or nil)
       end
-      if ok then done[#done + 1] = m.name else skipped[#skipped + 1] = m.name .. " (" .. tostring(err) .. ")" end
+      if ok then
+        done[#done + 1] = m.name
+        Written()[m.name] = Trim(body)
+      else
+        skipped[#skipped + 1] = m.name .. " (" .. tostring(err) .. ")"
+      end
     end
   end
   if #done > 0 then ns.Print("installed " .. table.concat(done, ", ") .. ". Use Pick up to put one on a bar.") end
@@ -328,14 +378,36 @@ function L.Install(list)
   if #done == 0 and #skipped == 0 then ns.Print("tick some macros first.") end
 end
 
+-- Clears every key bound to the macro, so no key is left pointing at nothing.
+local function Unbind(index)
+  local name = GetMacroInfo and GetMacroInfo(index)
+  if not (name and GetBindingKey and SetBinding) then return false end
+  local keys = { GetBindingKey("MACRO " .. name) }
+  for _, key in ipairs(keys) do SetBinding(key) end
+  return #keys > 0
+end
+
+-- Deletes only macros Agentcraft wrote; one of yours with the same name stays.
 function L.Remove(list)
   if InCombatLockdown() then return ns.Print("can't change macros in combat.") end
-  local removed = {}
+  local removed, kept, unbound = {}, {}, false
   for _, m in ipairs(list) do
-    local index = IndexOf(m.name)
-    if index > 0 then DeleteMacro(index); removed[#removed + 1] = m.name end
+    local index, legacy = IndexOf(m.name)
+    if index > 0 then
+      if IsOurs(m, index, legacy, L.Resolve(m)) then
+        unbound = Unbind(index) or unbound
+        DeleteMacro(index)
+        Written()[m.name] = nil
+        removed[#removed + 1] = m.name
+      else
+        kept[#kept + 1] = m.name
+      end
+    end
   end
-  ns.Print(#removed > 0 and ("removed " .. table.concat(removed, ", ")) or "none of those are installed.")
+  if unbound and SaveBindings and GetCurrentBindingSet then SaveBindings(GetCurrentBindingSet()) end
+  if #kept > 0 then ns.Print("kept " .. table.concat(kept, ", ") .. ": your own macro has that name; delete it in /macro.") end
+  if #removed > 0 then ns.Print("removed " .. table.concat(removed, ", "))
+  elseif #kept == 0 then ns.Print("none of those are installed.") end
 end
 
 -- Puts the installed macro on the cursor so it can be dropped on a bar.

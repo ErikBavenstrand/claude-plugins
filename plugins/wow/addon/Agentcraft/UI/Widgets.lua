@@ -50,6 +50,10 @@ local BAR_COMMANDS = {
   { "^MULTIACTIONBAR2BUTTON(%d+)$", 48 },
   { "^MULTIACTIONBAR3BUTTON(%d+)$", 24 },
   { "^MULTIACTIONBAR4BUTTON(%d+)$", 36 },
+  -- Bars 6-8 of the modern client; classic clients never bind these.
+  { "^MULTIACTIONBAR5BUTTON(%d+)$", 144 },
+  { "^MULTIACTIONBAR6BUTTON(%d+)$", 156 },
+  { "^MULTIACTIONBAR7BUTTON(%d+)$", 168 },
 }
 
 function UI.DescribeSlot(slot)
@@ -59,6 +63,7 @@ function UI.DescribeSlot(slot)
   elseif kind == "item" then d.name = UI.ItemName(id)
   elseif kind == "macro" then d.name = GetActionText(slot) or "Macro"
   elseif not kind then d.name = "Empty slot"
+  elseif kind == "flyout" then d.name = (GetFlyoutInfo and GetFlyoutInfo(id)) or "Flyout"
   else d.name = GetActionText(slot) or kind end
   d.tip = kind and { action = slot } or { title = "Empty slot" }
   return d
@@ -77,6 +82,27 @@ function UI.DescribeCommand(command)
     if isToken then name, tex = _G[name], _G[tex] end
     return { icon = tex, name = name or ("Pet slot " .. pet), kind = "pet",
              tip = name and { pet = pet } or { title = "Pet slot " .. pet } }
+  end
+  -- Direct binds to a macro, spell or item by name. A bind to a macro that
+  -- doesn't exist does nothing in game, so say so.
+  local macro = command:match("^MACRO (.+)$")
+  if macro then
+    local index = GetMacroIndexByName and GetMacroIndexByName(macro) or 0
+    if index > 0 then
+      local _, icon = GetMacroInfo(index)
+      return { icon = icon, name = macro, kind = "macro", tip = { title = "Macro: " .. macro } }
+    end
+    return { name = macro .. " (missing)", kind = "missing",
+             tip = { title = "Macro: " .. macro, text = "No macro with this name exists, so this key does nothing.", color = UI.RED } }
+  end
+  local spell = command:match("^SPELL (.+)$")
+  if spell then
+    return { icon = UI.SpellIcon(spell), name = spell, kind = "spell", tip = { title = spell } }
+  end
+  local item = command:match("^ITEM (.+)$")
+  if item then
+    local icon = C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(item)
+    return { icon = icon, name = item, kind = "item", tip = { title = item } }
   end
   local name = _G["BINDING_NAME_" .. command] or command
   return { name = name, kind = "other", tip = { title = name } }

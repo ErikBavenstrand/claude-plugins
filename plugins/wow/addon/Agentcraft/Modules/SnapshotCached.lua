@@ -22,9 +22,6 @@ local function Current(name)
   return snap and snap[name]
 end
 
-local function Pack(...) return U.Pack(...) end
-local function Rest(r) return U.Join({ n = r.n - 1, select(2, unpack(r, 1, r.n)) }) end
-
 -- Items in one container: { "Name xN", ... }.
 local function ContainerItems(bag)
   local n = C_Container.GetContainerNumSlots(bag) or 0
@@ -274,7 +271,7 @@ end)
 
 -- Played time and lockouts (asked from the server after login) -----------------
 
-local askedPlayed, quietPlayed = false, false
+local askedPlayed = false
 
 M.On("TIME_PLAYED_MSG", function(_, total, thisLevel)
   local function Fmt(sec)
@@ -288,7 +285,7 @@ M.On("UPDATE_INSTANCE_INFO", function()
   if not GetNumSavedInstances then return end
   local list = {}
   for i = 1, GetNumSavedInstances() do
-    local name, _, reset, _, locked, _, _, isRaid, maxPlayers, difficultyName, numEncounters, progress = GetSavedInstanceInfo(i)
+    local name, _, reset, _, locked, _, _, isRaid, _, difficultyName, numEncounters, progress = GetSavedInstanceInfo(i)
     if name and locked then
       list[#list + 1] = string.format("%s (%s%s): %s/%s bosses, resets in %dh", name, tostring(difficultyName),
         isRaid and ", raid" or "", tostring(progress), tostring(numEncounters), math.floor((reset or 0) / 3600))
@@ -303,17 +300,8 @@ M.On("PLAYER_ENTERING_WORLD", function()
   C_Timer.After(8, function()
     if RequestRaidInfo then RequestRaidInfo() end
     if C_GuildInfo and C_GuildInfo.GuildRoster then pcall(C_GuildInfo.GuildRoster) end
-    if RequestTimePlayed then
-      -- Hide the "Total time played" chat lines for this one request.
-      local orig = ChatFrame_DisplayTimePlayed
-      if orig then
-        quietPlayed = true
-        ChatFrame_DisplayTimePlayed = function(...)
-          if quietPlayed then quietPlayed = false; ChatFrame_DisplayTimePlayed = orig; return end
-          return orig(...)
-        end
-      end
-      RequestTimePlayed()
-    end
+    -- The reply also prints "Total time played" in chat. Replacing Blizzard's
+    -- chat function to hide it would taint it for the whole session.
+    if RequestTimePlayed then RequestTimePlayed() end
   end)
 end)

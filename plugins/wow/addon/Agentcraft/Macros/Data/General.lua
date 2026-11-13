@@ -3,21 +3,25 @@
 --
 -- A macro earns its place only if it does something a plain button or the
 -- game's own menus can't, and keeps working forever once installed: it names
--- spells, slash commands and equipment sets only, never an item. Food and
--- drink are item buttons placed by Apply.
+-- spells and slash commands only, never an item. Food and drink are item
+-- buttons placed by Apply. Fish's /equip of poles by name is the one
+-- exception, which the owner chose.
 local _, ns = ...
 local L = ns.MacroLibrary
 
 -- Fishing ----------------------------------------------------------------------
 -- With a pole in your hands it fishes. Otherwise it tries every common pole
 -- by name, worst first, so the best one you carry ends up equipped; poles
--- you don't have are skipped. "Fishing Pole" in [equipped:] is the item
--- type, so any pole counts. Put your weapons back yourself.
+-- you don't have are skipped. [equipped:] takes the item subtype, so any
+-- pole counts. The subtype name is "Fishing Poles" (plural, as in the
+-- auction house), though tooltips say "Fishing Pole". The Fishing module
+-- puts your weapons back 15 seconds after your last cast ends, or when you
+-- mount, unless you turn it off with /ac off Fishing.
 
 L.Add({ name = "Fish", category = "fishing", profession = "Fishing", order = 10, icon = "Fishing",
-  tags = { "controller", "gear" },
-  desc = "One button fishing: equips your best pole if you aren't holding one, otherwise fishes. Equip your weapons again yourself when you're done.",
-  body = "#showtooltip Fishing\n/cast [equipped:Fishing Pole] Fishing\n/stopmacro [equipped:Fishing Pole]\n/equip Fishing Pole\n/equip Strong Fishing Pole\n/equip Darkwood Fishing Pole\n/equip Big Iron Fishing Pole\n/equip Seth's Graphite Fishing Pole" })
+  tags = { "controller", "gear" }, untested = true,
+  desc = "One button fishing: equips your best pole if you aren't holding one, otherwise fishes. The Fishing module puts your weapons back when you stop fishing or mount (/ac off Fishing to do it yourself).",
+  body = "#showtooltip Fishing\n/cast [equipped:Fishing Poles] Fishing\n/stopmacro [equipped:Fishing Poles]\n/equip Fishing Pole\n/equip Strong Fishing Pole\n/equip Darkwood Fishing Pole\n/equip Big Iron Fishing Pole\n/equip Seth's Graphite Fishing Pole" })
 
 -- Utility ----------------------------------------------------------------------
 
@@ -43,7 +47,9 @@ L.Add({ name = "Reload", category = "utility", tags = { "interface", "controller
 
 -- Retired --------------------------------------------------------------------------
 -- Removed from /macro on the next controller Apply, but only while their text
--- is still exactly what Agentcraft installed (yours are never touched).
+-- is still exactly what Agentcraft installed (yours are never touched); keys
+-- bound to them are unbound. A name the library still offers (Melee, PetCare)
+-- is kept: its old text here makes the Macros page show "Update".
 L.retired = {
   -- Done by the game's menus, the vendor window or Steam.
   Map = "/run ToggleWorldMap()",
@@ -57,7 +63,7 @@ L.retired = {
   QuietErrors = "/run UIErrorsFrame:Clear()",
   -- The Hearthstone item itself goes on the bar.
   Hearth = "#showtooltip Hearthstone\n/use Hearthstone",
-  -- Fish and the Fishing module do it now.
+  -- Put the lure on a bar as an item button; the Fishing module warns when it runs out.
   Lure = "#showtooltip Shiny Bauble\n/use Shiny Bauble\n/use 16",
   -- One-line wrappers: the plain spell button is the same.
   Campfire = "#showtooltip\n/cast Basic Campfire",
@@ -81,7 +87,7 @@ L.retired = {
   -- Left the pet passive after the fight.
   Scatter = "#showtooltip Scatter Shot\n/targetenemy [noexists][dead][help]\n/petstay [@pettarget,harm]\n/petpassive [@pettarget,harm]\n/cast Scatter Shot",
   -- Covered by other buttons: separate Raptor/Mongoose/Disengage homes,
-  -- Arcane starts Auto Shot, PetToggle sends the pet, autocast toggles.
+  -- Arcane starts Auto Shot, the library's autocast toggles. No /petattack.
   Melee = "#showtooltip Raptor Strike\n/cast Mongoose Bite\n/cast Raptor Strike",
   Escape = "#showtooltip Disengage\n/petattack [@target,harm,nodead]\n/cast Disengage",
   AutoShot = "#showtooltip Auto Shot\n/targetenemy [noexists][dead][help]\n/cast !Auto Shot",

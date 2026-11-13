@@ -1,8 +1,11 @@
--- Snapshot: writes your whole character state to AgentcraftDB on every
--- /reload and logout, so it can be read outside the game
--- (WTF\Account\<account>\SavedVariables\Agentcraft.lua).
--- Each section runs on its own; if one fails, its error is stored instead
--- and the rest still saves.
+-- Snapshot: saves your whole character state to AgentcraftDB 10 seconds
+-- after something changes (after combat ends) and on logout, so it can be
+-- read outside the game (WTF\Account\<account>\SavedVariables\Agentcraft.lua,
+-- written on /reload and logout). A save while the character isn't loaded
+-- (often the case on logout) only records skippedIncomplete.
+-- Each section runs on its own. If one fails, its last good table is kept
+-- with staleSince/lastError (or the error is stored when there is none), and
+-- fields that turned "<secret>" keep their last readable value (secretKept).
 local _, ns = ...
 local M = ns.RegisterModule("Snapshot", {
   description = "save your full character state on every reload and logout",
@@ -34,6 +37,12 @@ local function Safe(v)
   if issecretvalue and issecretvalue(v) then return "<secret>" end
   return tostring(v)
 end
+local function IsSecret(v) return issecretvalue and issecretvalue(v) end
+-- Like Safe, but keeps numbers as numbers. A secret stored as is becomes nil.
+local function Keep(v)
+  if IsSecret(v) then return "<secret>" end
+  return v
+end
 
 local function Join(t)
   local parts = {}
@@ -58,36 +67,51 @@ local function Basics()
     zone = GetZoneText() .. (GetSubZoneText() ~= "" and (" / " .. GetSubZoneText()) or ""),
     hearthstone = GetBindLocation and GetBindLocation(),
     guild = GetGuildInfo("player"),
-    health = UnitHealth("player") .. " / " .. UnitHealthMax("player"),
-    mana = UnitPower("player", 0) .. " / " .. UnitPowerMax("player", 0),
+    health = Safe(UnitHealth("player")) .. " / " .. Safe(UnitHealthMax("player")),
+    mana = Safe(UnitPower("player", 0)) .. " / " .. Safe(UnitPowerMax("player", 0)),
   }
 end
 
+-- Each stat is read on its own: a secret value (no maths or formatting
+-- allowed on it) stores "<secret>" and the other stats still save.
 local function Stats()
   local s = {}
+  local function Put(label, fn, ...)
+    if not fn then return end
+    local ok, v = pcall(fn, ...)
+    if ok then s[label] = Keep(v) end
+  end
+  local function Sum(base, pos, neg)
+    if IsSecret(base) or IsSecret(pos) or IsSecret(neg) then return "<secret>" end
+    return (base or 0) + (pos or 0) + (neg or 0)
+  end
+  local function Pct(fn)
+    local v = fn()
+    if IsSecret(v) then return "<secret>" end
+    return string.format("%.2f", v)
+  end
   local names = { "Strength", "Agility", "Stamina", "Intellect", "Spirit" }
   for i, n in ipairs(names) do
-    local _, eff = UnitStat("player", i)
-    s[n] = eff
+    Put(n, function() return (select(2, UnitStat("player", i))) end)
   end
-  local _, armor = UnitArmor("player")
-  s.Armor = armor
+  Put("Armor", function() return (select(2, UnitArmor("player"))) end)
   if UnitRangedAttackPower then
-    local base, pos, neg = UnitRangedAttackPower("player")
-    s["Ranged attack power"] = base + pos + neg
+    Put("Ranged attack power", function() return Sum(UnitRangedAttackPower("player")) end)
   end
   if UnitAttackPower then
-    local base, pos, neg = UnitAttackPower("player")
-    s["Melee attack power"] = base + pos + neg
+    Put("Melee attack power", function() return Sum(UnitAttackPower("player")) end)
   end
   if UnitRangedDamage then
-    local speed, minD, maxD = UnitRangedDamage("player")
-    s["Ranged damage"] = string.format("%.0f-%.0f, speed %.2f", minD or 0, maxD or 0, speed or 0)
+    Put("Ranged damage", function()
+      local speed, minD, maxD = UnitRangedDamage("player")
+      if IsSecret(speed) or IsSecret(minD) or IsSecret(maxD) then return "<secret>" end
+      return string.format("%.0f-%.0f, speed %.2f", minD or 0, maxD or 0, speed or 0)
+    end)
   end
-  if GetRangedCritChance then s["Ranged crit %"] = string.format("%.2f", GetRangedCritChance()) end
-  if GetCritChance then s["Melee crit %"] = string.format("%.2f", GetCritChance()) end
-  if GetDodgeChance then s["Dodge %"] = string.format("%.2f", GetDodgeChance()) end
-  if GetHitModifier then s["Hit bonus %"] = GetHitModifier() end
+  if GetRangedCritChance then Put("Ranged crit %", Pct, GetRangedCritChance) end
+  if GetCritChance then Put("Melee crit %", Pct, GetCritChance) end
+  if GetDodgeChance then Put("Dodge %", Pct, GetDodgeChance) end
+  Put("Hit bonus %", GetHitModifier)
   return s
 end
 
@@ -175,8 +199,11 @@ local function Skills()
     end
   end
   if GetProfessions then
+    -- Empty profession slots are nil, so walk every slot (ipairs stops at the first nil).
     local list = {}
-    for _, idx in ipairs({ GetProfessions() }) do
+    local slots = Pack(GetProfessions())
+    for i = 1, slots.n do
+      local idx = slots[i]
       if idx then
         local name, _, rank, max = GetProfessionInfo(idx)
         table.insert(list, string.format("%s %d/%d", name, rank or 0, max or 0))
@@ -202,7 +229,10 @@ local function Spellbook(pet)
     if pet then
       local n = C_SpellBook.HasPetSpells and C_SpellBook.HasPetSpells() or 0
       local list = {}
-      for i = 1, n or 0 do table.insert(list, Entry(i)) end
+      for i = 1, n or 0 do
+        local e = Entry(i)
+        if e then list[#list + 1] = e end
+      end
       return list
     end
     for tab = 1, C_SpellBook.GetNumSpellBookSkillLines() do
@@ -210,7 +240,8 @@ local function Spellbook(pet)
       if line then
         local list = {}
         for i = line.itemIndexOffset + 1, line.itemIndexOffset + line.numSpellBookItems do
-          table.insert(list, Entry(i))
+          local e = Entry(i)
+          if e then list[#list + 1] = e end
         end
         out[line.name or ("Tab " .. tab)] = list
       end
@@ -324,7 +355,7 @@ local function Pet()
     name = UnitName("pet"),
     family = UnitCreatureFamily and UnitCreatureFamily("pet"),
     level = UnitLevel("pet"),
-    health = UnitHealth("pet") .. " / " .. UnitHealthMax("pet"),
+    health = Safe(UnitHealth("pet")) .. " / " .. Safe(UnitHealthMax("pet")),
   }
   if GetPetHappiness then
     local happiness, damagePct, loyaltyRate = GetPetHappiness()
@@ -366,20 +397,31 @@ local function Pet()
     local total, spent = GetPetTrainingPoints()
     p.trainingPoints = string.format("%s total, %s spent", tostring(total), tostring(spent))
   end
-  if GetPetFoodTypes then p.diet = table.concat({ GetPetFoodTypes() }, ", ") end
+  -- Modern-engine clients have it only as C_PetInfo.GetPetFoodTypes.
+  local foodTypes = GetPetFoodTypes or (C_PetInfo and C_PetInfo.GetPetFoodTypes)
+  if foodTypes then
+    local r = Pack(pcall(foodTypes))
+    if r[1] then
+      if type(r[2]) == "table" then
+        p.diet = Join({ n = #r[2], unpack(r[2]) })
+      else
+        p.diet = Join({ n = r.n - 1, select(2, unpack(r, 1, r.n)) })
+      end
+    end
+  end
   local stats = {}
   for i, n in ipairs({ "Strength", "Agility", "Stamina", "Intellect", "Spirit" }) do
     local _, eff = UnitStat("pet", i)
-    stats[n] = eff
+    stats[n] = Keep(eff)
   end
   local _, armor = UnitArmor("pet")
-  stats.Armor = armor
+  stats.Armor = Keep(armor)
   p.stats = stats
   local ok, book = pcall(Spellbook, true)
   p.spellbook = ok and book or ("error: " .. tostring(book))
   local bar = {}
   for i = 1, 10 do
-    local name, tex, isToken, isActive, autoAllowed, autoOn = GetPetActionInfo(i)
+    local name, _, isToken, isActive, autoAllowed, autoOn = GetPetActionInfo(i)
     if isToken then name = _G[name] end
     if name then
       bar[i] = name .. (autoOn and " (autocast on)" or autoAllowed and " (autocast off)" or "")
@@ -392,12 +434,15 @@ local function Pet()
   return p
 end
 
+-- Auras can't be read while they are secret. Then this raises, and Save
+-- keeps the previous buff list.
 local function Buffs()
   local list = {}
   for i = 1, 40 do
     local name
     if C_UnitAuras and C_UnitAuras.GetAuraDataByIndex then
-      local a = C_UnitAuras.GetAuraDataByIndex("player", i, "HELPFUL")
+      local ok, a = pcall(C_UnitAuras.GetAuraDataByIndex, "player", i, "HELPFUL")
+      if not ok then error("auras are secret right now: " .. tostring(a), 0) end
       name = a and a.name
     elseif UnitBuff then
       name = UnitBuff("player", i)
@@ -452,18 +497,28 @@ local function Quests()
   return list
 end
 
--- Action slots 1-180 (controller layouts use slots past 120) with their key, e.g. "Q | spell | 13550 | Serpent Sting".
+-- Action slots 1-180 plus the Gamepad UI's slots after them (from 181 on this
+-- client), with their key, e.g. "Q | spell | 13550 | Serpent Sting".
 local SLOT_COMMANDS = {
   { 0, "ACTIONBUTTON" }, { 60, "MULTIACTIONBAR1BUTTON" }, { 48, "MULTIACTIONBAR2BUTTON" },
   { 24, "MULTIACTIONBAR3BUTTON" }, { 36, "MULTIACTIONBAR4BUTTON" },
+  -- Bars 6-8 (same offsets as UI.DescribeCommand); unbound keys read nil.
+  { 144, "MULTIACTIONBAR5BUTTON" }, { 156, "MULTIACTIONBAR6BUTTON" }, { 168, "MULTIACTIONBAR7BUTTON" },
 }
 local function Bars()
   local keyFor = {}
   for _, c in ipairs(SLOT_COMMANDS) do
     for i = 1, 12 do keyFor[c[1] + i] = GetBindingKey(c[2] .. i) end
   end
+  local last = 180
+  if C_GamepadUI and C_GamepadUI.GetFirstGamepadActionStorageSlotIndex then
+    local ok, first = pcall(C_GamepadUI.GetFirstGamepadActionStorageSlotIndex)
+    local K = Constants and Constants.GamepadActionBarConstants
+    local pages = K and K.NUM_STANDARD_PAGES_PER_GAMEPAD_ACTION_BAR_PAGE_UNIT or 3
+    if ok and type(first) == "number" and not IsSecret(first) then last = math.max(last, first + pages * 32 - 1) end
+  end
   local slots = {}
-  for s = 1, 180 do
+  for s = 1, last do
     local t, id = GetActionInfo(s)
     if t then
       local name
@@ -528,17 +583,53 @@ end
 -- While the game loads or quits, the client reports an empty character
 -- (no XP, no spellbook, wrong level). Such a snapshot must not replace a
 -- good one.
+-- Cheap check, run before building any section.
+local function CharacterLoaded()
+  if C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines then
+    if C_SpellBook.GetNumSpellBookSkillLines() == 0 then return false end
+  elseif GetNumSpellTabs and GetNumSpellTabs() == 0 then
+    return false
+  end
+  local maxLevel = GetMaxPlayerLevel and GetMaxPlayerLevel() or 60
+  return UnitXPMax("player") > 0 or UnitLevel("player") >= maxLevel
+end
+
 local function LooksComplete(snap)
   local book = snap.spellbook
   if type(book) ~= "table" or next(book) == nil then return false end
-  local maxLevel = GetMaxPlayerLevel and GetMaxPlayerLevel() or 60
-  return UnitXPMax("player") > 0 or UnitLevel("player") >= maxLevel
+  return CharacterLoaded()
+end
+
+-- "<secret>", "<secret> / <secret>", "<secret>, <secret>": nothing readable.
+local function SecretOnly(v)
+  return type(v) == "string" and v:find("<secret>", 1, true) ~= nil
+    and (v:gsub("<secret>", "")):find("^[%s,/]*$") ~= nil
+end
+
+-- Puts old values back into fields that are secret now. Returns the field names.
+local function KeepOld(new, old, prefix, kept)
+  for k, v in pairs(new) do
+    local o = old[k]
+    if type(v) == "table" and type(o) == "table" then
+      KeepOld(v, o, prefix .. tostring(k) .. ".", kept)
+    elseif SecretOnly(v) and o ~= nil and type(o) ~= "table" and not SecretOnly(o) then
+      new[k] = o
+      kept[#kept + 1] = prefix .. tostring(k)
+    end
+  end
+  return kept
 end
 
 -- Returns the character key and whether the snapshot was stored.
 function M:Save()
   local key = (UnitName("player") or "?") .. "-" .. (GetRealmName() or "?")
-  local snap = { time = date("%Y-%m-%d %H:%M:%S") }
+  local now = date("%Y-%m-%d %H:%M:%S")
+  -- Checked first, so a save during loading or logout costs nothing.
+  if not CharacterLoaded() then
+    if self.db[key] then self.db[key].skippedIncomplete = now end
+    return key, false
+  end
+  local snap = { time = now }
   for _, s in ipairs(SECTIONS) do
     local ok, result = pcall(s[2])
     snap[s[1]] = ok and result or ("error: " .. tostring(result))
@@ -549,6 +640,22 @@ function M:Save()
   end
   local old = self.db[key]
   if old then
+    -- Secret restrictions hide some values at times. Keep the last readable
+    -- ones instead of replacing them with an error or "<secret>".
+    for _, s in ipairs(SECTIONS) do
+      local name = s[1]
+      local new, prev = snap[name], old[name]
+      if type(prev) == "table" then
+        if type(new) == "string" and new:find("^error: ") then
+          prev.staleSince = prev.staleSince or snap.time
+          prev.lastError = new
+          snap[name] = prev
+        elseif type(new) == "table" then
+          local kept = KeepOld(new, prev, "", {})
+          if #kept > 0 then new.secretKept = kept end
+        end
+      end
+    end
     for name in pairs(CACHED) do snap[name] = old[name] end
   end
   self.db[key] = snap
@@ -556,13 +663,17 @@ function M:Save()
 end
 
 -- Save soon after something changes, at most once per 10 seconds, so the
--- last good snapshot is recent when the game quits.
-local pending
+-- last good snapshot is recent when the game quits. In combat, wait until
+-- it ends: many values are secret then.
+local pending, afterCombat
+local function InCombat() return InCombatLockdown and InCombatLockdown() end
 local function SaveSoon(self)
+  if InCombat() then afterCombat = true; return end
   if pending then return end
   pending = true
   C_Timer.After(10, function()
     pending = false
+    if InCombat() then afterCombat = true; return end
     self:Save()
   end)
 end
@@ -584,6 +695,9 @@ M.events = {
   TRAIT_CONFIG_UPDATED = SaveSoon,
   SKILL_LINES_CHANGED = SaveSoon,
   UNIT_PET = SaveSoon,
+  PLAYER_REGEN_ENABLED = function(self)
+    if afterCombat then afterCombat = false; SaveSoon(self) end
+  end,
   -- Also fires on /reload. On quit the data is often already gone; Save
   -- then keeps the previous snapshot.
   PLAYER_LOGOUT = function(self) self:Save() end,

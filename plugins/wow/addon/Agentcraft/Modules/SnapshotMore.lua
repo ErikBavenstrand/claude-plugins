@@ -188,7 +188,7 @@ M.AddSection("macros", function()
   local numGlobal, numChar = GetNumMacros()
   local base = MAX_ACCOUNT_MACROS or 120
   local function Read(i)
-    local name, icon, body = GetMacroInfo(i)
+    local name, _, body = GetMacroInfo(i)
     if name then return { name = name, body = body } end
   end
   local out = { account = {}, character = {} }
@@ -290,7 +290,7 @@ M.AddSection("addons", function()
   if not (A and A.GetNumAddOns) then return nil end
   local list = {}
   for i = 1, A.GetNumAddOns() do
-    local name, title, _, loadable = A.GetAddOnInfo(i)
+    local name, _, _, loadable = A.GetAddOnInfo(i)
     local version = A.GetAddOnMetadata and A.GetAddOnMetadata(i, "Version")
     list[#list + 1] = string.format("%s%s%s", name, version and (" " .. version) or "",
       A.IsAddOnLoaded(i) and "" or (loadable and " (not loaded)" or " (disabled)"))
@@ -299,8 +299,10 @@ M.AddSection("addons", function()
 end)
 
 -- Controller: whether controller mode is on, the connected pad, its settings
--- and every binding on a pad button. Default controller bindings are never
--- written to bindings-cache.wtf until changed, so only the game knows them.
+-- and the native Gamepad UI bars (gamepadBars), which hold the controller
+-- mapping. That UI handles pad buttons inside the client, not through key
+-- bindings, so bindings, current and clickTargets are only stored when some
+-- binding sits on a pad button (such as with ConsolePort-style addons).
 M.AddSection("controller", function()
   local out = { settings = {}, bindings = {} }
   local G = C_GamePad
@@ -337,8 +339,8 @@ M.AddSection("controller", function()
     end
   end
 
-  -- The controller UI binds buttons with override bindings, which GetBinding
-  -- doesn't list. Ask what every pad button (with each modifier) does now.
+  -- Override bindings (from addons) aren't listed by GetBinding. Ask what
+  -- every pad button (with each modifier) does now.
   local buttons = { "PAD1", "PAD2", "PAD3", "PAD4", "PAD5", "PAD6", "PADDUP", "PADDDOWN", "PADDLEFT", "PADDRIGHT",
     "PADLSHOULDER", "PADRSHOULDER", "PADLTRIGGER", "PADRTRIGGER", "PADLSTICK", "PADRSTICK", "PADBACK",
     "PADFORWARD", "PADSOCIAL", "PADSYSTEM", "PADPADDLE1", "PADPADDLE2", "PADPADDLE3", "PADPADDLE4",
@@ -353,7 +355,8 @@ M.AddSection("controller", function()
       if ok and action and action ~= "" then out.current[key] = Label(action) end
     end
   end
-  out.note = "current = what each button does right now, including the controller UI's override bindings"
+  out.note = "gamepadBars is the controller mapping (the Gamepad UI doesn't use key bindings). "
+    .. "bindings/current appear only when a binding sits on a pad button; current includes override bindings"
 
   -- Steam Deck back buttons arrive as F13-F16 (plain and with LT = Shift).
   out.backButtons = {}
@@ -364,9 +367,8 @@ M.AddSection("controller", function()
     end
   end
 
-  -- The controller UI routes buttons to click frames. Describe those frames
-  -- and every action button whose hotkey shows a controller glyph, so the
-  -- button -> action slot -> spell chain can be followed.
+  -- Pad bindings may route buttons to click frames. Describe those frames, so
+  -- the button -> action slot -> spell chain can be followed.
   local function FrameInfo(f)
     local info = { frame = f:GetName(), parent = f:GetParent() and f:GetParent():GetName(), shown = f:IsShown() or nil }
     for _, a in ipairs({ "type", "action", "spell", "macro", "item", "clickbutton", "function", "binding", "actionpage" }) do
@@ -427,24 +429,14 @@ M.AddSection("controller", function()
   end
 
   out.clickTargets = {}
-  for key, label in pairs(out.current) do
+  for _, label in pairs(out.current) do
     local name = label:match("^CLICK ([^:]+):")
     local f = name and _G[name]
     if f and not out.clickTargets[name] then out.clickTargets[name] = FrameInfo(f) end
   end
 
-  out.padButtons = {}
-  local f = EnumerateFrames()
-  local scanned = 0
-  while f and scanned < 20000 do
-    scanned = scanned + 1
-    if f.HotKey and f.HotKey.GetText and (f.action or f.CalculateAction) then
-      local ok, text = pcall(f.HotKey.GetText, f.HotKey)
-      if ok and type(text) == "string" and (text:find("|A") or text:find("|T") or text:find("PAD")) then
-        if #out.padButtons < 120 then out.padButtons[#out.padButtons + 1] = FrameInfo(f) end
-      end
-    end
-    f = EnumerateFrames(f)
+  for _, k in ipairs({ "bindings", "current", "clickTargets" }) do
+    if next(out[k]) == nil then out[k] = nil end
   end
   return out
 end)

@@ -76,10 +76,12 @@ local PROFESSIONS = {
 local PROFESSION_RANK = {}
 for i, name in ipairs(PROFESSIONS) do PROFESSION_RANK[name] = i end
 local IGNORE = { ["Attack"] = true, ["Auto Attack"] = true, ["Auto Shot"] = true, ["Shoot"] = true, ["Throw"] = true, ["Cultivation"] = true }
+-- "Call Pet" shows in the spellbook as "Call <pet name>", so match it by ID.
+local CALL_PET_ID = 883
 
-local function IsPet(name) return PET_SPELLS[name] or name:find("^Summon ") end
+local function PetRank(name, id) return PET_SPELLS[name] or (id == CALL_PET_ID and PET_SPELLS["Call Pet"]) or nil end
+local function IsPet(name, id) return PetRank(name, id) or name:find("^Summon ") end
 local function IsTracking(name) return name:find("^Track ") or name:find("^Find ") or name:find("^Sense ") end
-local function IsProfession(name) return PROFESSION_RANK[name] end
 
 -- Map of known (castable) spell name -> spell ID. Later ranks come later in
 -- the spellbook, so the highest rank wins.
@@ -87,12 +89,17 @@ local function KnownSpells()
   local map = {}
   if C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines then
     local bank = Enum.SpellBookSpellBank.Player
+    local spellType = Enum.SpellBookItemType and Enum.SpellBookItemType.Spell
     for tab = 1, C_SpellBook.GetNumSpellBookSkillLines() do
       local line = C_SpellBook.GetSpellBookSkillLineInfo(tab)
-      for i = line.itemIndexOffset + 1, line.itemIndexOffset + line.numSpellBookItems do
-        local item = C_SpellBook.GetSpellBookItemInfo(i, bank)
-        if item and item.spellID and item.name and not item.isPassive then
-          map[item.name] = item.spellID
+      if line then
+        for i = line.itemIndexOffset + 1, line.itemIndexOffset + line.numSpellBookItems do
+          local item = C_SpellBook.GetSpellBookItemInfo(i, bank)
+          -- Spells only: no future (unlearned) spells, flyouts or pet actions.
+          if item and item.spellID and item.name and not item.isPassive
+            and (not spellType or item.itemType == nil or item.itemType == spellType) then
+            map[item.name] = item.spellID
+          end
         end
       end
     end
@@ -108,6 +115,48 @@ local function KnownSpells()
     end
   end
   return map
+end
+
+-- Spell ID for a spell you know by name, from the game's own lookup.
+local function LookupKnown(name)
+  local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(name)
+  local id = info and info.spellID
+  if id and ((IsPlayerSpell and IsPlayerSpell(id)) or (IsSpellKnown and IsSpellKnown(id))) then return id end
+end
+
+-- Names the class skill lines miss: profession spells and the pet spells.
+local SIDE_EXTRAS = { "Find Minerals", "Find Herbs" }
+for _, name in ipairs(PROFESSIONS) do table.insert(SIDE_EXTRAS, name) end
+for name in pairs(PET_SPELLS) do table.insert(SIDE_EXTRAS, name) end
+
+-- The known map plus profession spells, which live outside the class skill
+-- lines. Returns name -> ID and the set of names from your professions.
+local function SideKnown(known)
+  local ids, have, prof = {}, {}, {}
+  for name, id in pairs(known) do ids[name] = id; have[id] = true end
+  local function Add(name, id, fromProfession)
+    if name and id and not ids[name] and not have[id] then
+      ids[name], have[id] = id, true
+      if fromProfession then prof[name] = true end
+    end
+  end
+  if GetProfessions and GetProfessionInfo and C_SpellBook and C_SpellBook.GetSpellBookItemInfo then
+    local bank = Enum.SpellBookSpellBank.Player
+    local list = { GetProfessions() }
+    for p = 1, select("#", GetProfessions()) do
+      if list[p] then
+        local _, _, _, _, numSpells, offset = GetProfessionInfo(list[p])
+        for i = (offset or 0) + 1, (offset or 0) + (numSpells or 0) do
+          local ok, item = pcall(C_SpellBook.GetSpellBookItemInfo, i, bank)
+          if ok and item and item.spellID and item.name and not item.isPassive then Add(item.name, item.spellID, true) end
+        end
+      end
+    end
+  end
+  for _, name in ipairs(SIDE_EXTRAS) do
+    if not ids[name] then Add(name, LookupKnown(name)) end
+  end
+  return ids, prof
 end
 
 -- Items ------------------------------------------------------------------
@@ -275,28 +324,41 @@ local function ManagedSlots()
 end
 
 -- Learned spells not on a keyed bar, split into the two side-bar lists.
+-- Also returns the name -> spell ID map the lists draw from.
 local function SideBars(profile, known)
   local used = {}
   for bar = 1, 2 do
     for _, entry in pairs(profile[bar] or {}) do
-      for _, name in ipairs(entry) do used[name] = true end
+      -- Only the spell a home picked is placed; the alternatives it skipped
+      -- still need a home. A macro home places its spell and covers = { ... }.
       local item = ResolveEntry(entry, known)
-      if item.name then used[item.name] = true end
+      if item.kind == "spell" and item.name then used[item.name] = true end
+      if item.kind == "macro" then
+        if entry[1] then used[entry[1]] = true end
+        for _, n in ipairs(entry.covers or {}) do used[n] = true end
+      end
+      -- { "Better", "Lower rank", upgrade = true }: the lower one needs no home.
+      if entry.upgrade then
+        for _, n in ipairs(entry) do used[n] = true end
+      end
     end
   end
+  local ids, fromProfession = SideKnown(known)
+  local function Rank(name) return PetRank(name, ids[name]) or 99 end
+  local function ProfRank(name) return PROFESSION_RANK[name] or 99 end
   local pet, other, tracking, prof = {}, {}, {}, {}
-  for name in pairs(known) do
+  for name in pairs(ids) do
     if not used[name] and not IGNORE[name] then
-      if IsPet(name) then table.insert(pet, name)
+      if IsPet(name, ids[name]) then table.insert(pet, name)
       elseif IsTracking(name) then table.insert(tracking, name)
-      elseif IsProfession(name) then table.insert(prof, name)
+      elseif PROFESSION_RANK[name] or fromProfession[name] then table.insert(prof, name)
       else table.insert(other, name) end
     end
   end
-  table.sort(pet, function(a, b) return (PET_SPELLS[a] or 99) < (PET_SPELLS[b] or 99) or ((PET_SPELLS[a] or 99) == (PET_SPELLS[b] or 99) and a < b) end)
+  table.sort(pet, function(a, b) return Rank(a) < Rank(b) or (Rank(a) == Rank(b) and a < b) end)
   table.sort(other)
   table.sort(tracking)
-  table.sort(prof, function(a, b) return PROFESSION_RANK[a] < PROFESSION_RANK[b] end)
+  table.sort(prof, function(a, b) return ProfRank(a) < ProfRank(b) or (ProfRank(a) == ProfRank(b) and a < b) end)
   local right, right2 = {}, {}
   for _, n in ipairs(pet) do table.insert(right, n) end
   for _, n in ipairs(other) do table.insert(right, n) end
@@ -304,7 +366,55 @@ local function SideBars(profile, known)
   for _, n in ipairs(prof) do table.insert(right2, n) end
   -- Spill extras from one side bar into free room on the other.
   while #right > 12 and #right2 < 12 do table.insert(right2, table.remove(right)) end
-  return right, right2
+  return right, right2, ids
+end
+
+-- Spellbook index of a flyout, by flyout ID (for undo).
+local function FlyoutIndex(want)
+  if not (C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines) then return end
+  local bank = Enum.SpellBookSpellBank.Player
+  for tab = 1, C_SpellBook.GetNumSpellBookSkillLines() do
+    local line = C_SpellBook.GetSpellBookSkillLineInfo(tab)
+    if line then
+      for i = line.itemIndexOffset + 1, line.itemIndexOffset + line.numSpellBookItems do
+        local item = C_SpellBook.GetSpellBookItemInfo(i, bank)
+        if item and item.itemType == Enum.SpellBookItemType.Flyout and item.actionID == want then return i end
+      end
+    end
+  end
+end
+
+-- Action types undo can put back. Apply leaves slots of any other type alone.
+local function Restorable(t)
+  if t == "spell" or t == "item" or t == "macro" then return true end
+  if t == "flyout" then return C_SpellBook and C_SpellBook.PickupSpellBookItem and true end
+  if t == "summonmount" then return C_MountJournal and C_MountJournal.GetMountInfoByID and true end
+  if t == "summonpet" then return _G.C_PetJournal and _G.C_PetJournal.PickupPet and true end
+  if t == "equipmentset" then return C_EquipmentSet and C_EquipmentSet.PickupEquipmentSet and true end
+  return false
+end
+
+-- Puts a backed-up action on the cursor. Macros go back by name, since
+-- macro indexes shift when macros are created or deleted.
+local function PickupSaved(t, id, text)
+  if t == "spell" then PickupSpellID(id)
+  elseif t == "item" then PickupItemID(id)
+  elseif t == "macro" then
+    local i = text and GetMacroIndexByName(text)
+    if i and i > 0 then PickupMacro(i)
+    elseif not text then PickupMacro(id) end -- backup from an older version
+  elseif t == "flyout" then
+    local index = FlyoutIndex(id)
+    if index then C_SpellBook.PickupSpellBookItem(index, Enum.SpellBookSpellBank.Player) end
+  elseif t == "summonmount" then
+    local _, spellID = C_MountJournal.GetMountInfoByID(id)
+    if spellID then PickupSpellID(spellID) end
+  elseif t == "summonpet" then pcall(_G.C_PetJournal.PickupPet, id)
+  elseif t == "equipmentset" then
+    local setID = id
+    if type(id) == "string" and C_EquipmentSet.GetEquipmentSetID then setID = C_EquipmentSet.GetEquipmentSetID(id) end
+    if setID then pcall(C_EquipmentSet.PickupEquipmentSet, setID) end
+  end
 end
 
 local function Apply()
@@ -314,27 +424,35 @@ local function Apply()
   local known = KnownSpells()
   local bags, bagList = BagItems()
 
-  -- Back up every slot we touch, for undo.
-  local backup = {}
+  -- Keep the very first backup, so undo always returns to the bars from
+  -- before the first apply. Slots holding something undo can't put back
+  -- are left alone.
+  local first = not M.charDB.backup
+  local backup = M.charDB.backup or {}
+  local keep, kept = {}, 0
   for _, slot in ipairs(ManagedSlots()) do
     local t, id = GetActionInfo(slot)
-    if t then backup[slot] = { t, id } end
+    if t and not Restorable(t) then keep[slot] = true; kept = kept + 1 end
+    if first and t then backup[slot] = { t, id, t == "macro" and GetActionText(slot) or nil } end
   end
   M.charDB.backup = backup
 
   ClearCursor()
-  for _, slot in ipairs(ManagedSlots()) do ClearSlot(slot) end
+  for _, slot in ipairs(ManagedSlots()) do
+    if not keep[slot] then ClearSlot(slot) end
+  end
 
   local missing = {}
   local C = ns.modules.controller
   for bar = 1, 2 do
     for i = 1, 12 do
       local entry = profile[bar] and profile[bar][i]
-      if entry then
+      local slot = BAR_OFFSET[bar] + i
+      if entry and not keep[slot] then
         local item = ResolveEntry(entry, known)
         if item.missing then table.insert(missing, item.missing)
-        elseif C and C.Place then C.Place(BAR_OFFSET[bar] + i, item)
-        elseif item.kind == "spell" then PlaceSpell(BAR_OFFSET[bar] + i, item.id) end
+        elseif C and C.Place then C.Place(slot, item)
+        elseif item.kind == "spell" then PlaceSpell(slot, item.id) end
       end
     end
   end
@@ -342,22 +460,23 @@ local function Apply()
   local utility = profile[3] or M.utility
   for i = 1, 12 do
     local entry = utility[i]
-    if entry then
+    if entry and not keep[BAR_OFFSET[3] + i] then
       local id = ResolveUtility(entry, bags, bagList)
       if id then PlaceItem(BAR_OFFSET[3] + i, id) end
     end
   end
 
-  local right, right2 = SideBars(profile, known)
+  local right, right2, ids = SideBars(profile, known)
   for i, name in ipairs(right) do
-    if i <= 12 then PlaceSpell(RIGHT_BAR + i, known[name]) end
+    if i <= 12 and not keep[RIGHT_BAR + i] then PlaceSpell(RIGHT_BAR + i, ids[name]) end
   end
   for i, name in ipairs(right2) do
-    if i <= 12 then PlaceSpell(RIGHT_BAR_2 + i, known[name]) end
+    if i <= 12 and not keep[RIGHT_BAR_2 + i] then PlaceSpell(RIGHT_BAR_2 + i, ids[name]) end
   end
   if #right > 12 or #right2 > 12 then ns.Print("side bars full; some spells stay in the spellbook.") end
 
   ns.Print("bars set for " .. class .. ". /ac spells undo to go back.")
+  if kept > 0 then ns.Print(kept .. " slots kept as they were (undo can't restore what they hold).") end
   if #missing > 0 then ns.Print("left empty (not learned yet, or macro not installed): " .. table.concat(missing, ", ")) end
 end
 
@@ -367,16 +486,16 @@ local function Undo()
   if not backup then return ns.Print("nothing to undo.") end
   ClearCursor()
   for _, slot in ipairs(ManagedSlots()) do
-    ClearSlot(slot)
     local saved = backup[slot]
-    if saved then
-      local t, id = saved[1], saved[2]
-      if t == "spell" then PickupSpellID(id)
-      elseif t == "item" then PickupItemID(id)
-      elseif t == "macro" then PickupMacro(id)
+    local cur = GetActionInfo(slot)
+    -- Apply left slots it can't restore alone; so does undo.
+    if not (cur and not Restorable(cur)) and not (saved and not Restorable(saved[1])) then
+      ClearSlot(slot)
+      if saved then
+        PickupSaved(saved[1], saved[2], saved[3])
+        if GetCursorInfo() then PlaceAction(slot) end
+        ClearCursor()
       end
-      if GetCursorInfo() then PlaceAction(slot) end
-      ClearCursor()
     end
   end
   M.charDB.backup = nil
@@ -432,9 +551,9 @@ function M.Plan()
   if not profile then return nil, class end
   local known = KnownSpells()
   local bags, bagList = BagItems()
-  local right, right2 = SideBars(profile, known)
+  local right, right2, ids = SideBars(profile, known)
   local utility = profile[3] or M.utility
-  local plan = { changes = 0, spellsMissing = 0, itemsMissing = 0 }
+  local plan = { changes = 0, spellsMissing = 0, itemsMissing = 0, macrosMissing = 0 }
   for r, row in ipairs(ROWS) do
     local entries = {}
     for i = 1, 12 do
@@ -444,7 +563,9 @@ function M.Plan()
         if entry then
           local item = ResolveEntry(entry, known)
           e.item = item
-          e.kind = item.kind or "spell"
+          -- A missing home keeps its entry's form: item, macro or spell.
+          e.kind = item.kind or ((entry.item or entry.utility) and "item")
+            or (item.macro and "macro") or "spell"
           e.id = item.id or (not item.missing and item.name) or nil
           e.name = item.name or item.missing
         end
@@ -456,7 +577,7 @@ function M.Plan()
         end
       else
         local name = (r == 4 and right or right2)[i]
-        if name then e.kind, e.id, e.name = "spell", known[name], name end
+        if name then e.kind, e.id, e.name = "spell", ids[name], name end
       end
       local cur, curID = GetActionInfo(e.slot)
       local C = ns.modules.controller
@@ -468,6 +589,7 @@ function M.Plan()
       if e.state == "new" or e.state == "clear" then plan.changes = plan.changes + 1 end
       if e.state == "missing" then
         if e.kind == "spell" then plan.spellsMissing = plan.spellsMissing + 1
+        elseif e.kind == "macro" then plan.macrosMissing = plan.macrosMissing + 1
         else plan.itemsMissing = plan.itemsMissing + 1 end
       end
       entries[i] = e
@@ -498,7 +620,8 @@ local function FillSlot(s, e, command)
     s:SetIcon((e.kind == "spell" and UI.SpellIcon(e.name)) or UI.QUESTION, true)
     s:SetMark(UI.RED)
     s:SetTip({ title = e.name, color = UI.RED,
-      text = e.kind == "spell" and "Not learned yet. Placed here once you train it and apply again."
+      text = (e.kind == "spell" and "Not learned yet. Placed here once you train it and apply again.")
+        or (e.kind == "macro" and "Macro not installed. Install it on the Macros page, then apply again.")
         or "None in your bags. Placed here once you carry one and apply again." })
   elseif e.kind == "flyout" or e.kind == "macro" then
     local C = ns.modules.controller
@@ -594,11 +717,12 @@ ns.RegisterPage({
     end
     if p.spellsMissing > 0 then parts[#parts + 1] = "|cffff5a4a" .. p.spellsMissing .. " not learned|r" end
     if p.itemsMissing > 0 then parts[#parts + 1] = "|cffaaaaaa" .. p.itemsMissing .. " not in bags|r" end
+    if p.macrosMissing > 0 then parts[#parts + 1] = "|cffaaaaaa" .. p.macrosMissing .. " macros not installed|r" end
     return table.concat(parts, "  ·  ")
   end,
 
   actions = {
-    { label = "Undo", fn = Undo, tooltip = "Put the bars back the way they were before the last apply." },
+    { label = "Undo", fn = Undo, tooltip = "Put the bars back the way they were before the first apply." },
     { label = "Apply", fn = Apply, tooltip = "Fill all bars as shown. Your current bars are saved for undo." },
   },
 })

@@ -50,18 +50,27 @@ local function Layout()
   return list
 end
 
+-- Where the backup lives: per character when this character uses
+-- character-specific binds, otherwise account-wide like the binds.
+local function Store()
+  local set = GetCurrentBindingSet and GetCurrentBindingSet()
+  if set == (_G.CHARACTER_BINDINGS or 2) then return M.charDB end
+  return M.db
+end
+
 local function Apply()
   if InCombatLockdown() then return ns.Print("can't change keybinds in combat.") end
   local layout = Layout()
 
   -- Keep the very first backup, so undo always returns to your original binds.
-  if not M.db.backup then
+  local store = Store()
+  if not store.backup then
     local backup = { commands = {}, keys = {} }
     for _, b in ipairs(layout) do
       backup.commands[b.command] = { GetBindingKey(b.command) }
       if b.key then backup.keys[b.key] = GetBindingAction(b.key) end
     end
-    M.db.backup = backup
+    store.backup = backup
   end
 
   -- Clear every key on the managed commands so nothing is left double-bound.
@@ -78,7 +87,8 @@ end
 
 local function Undo()
   if InCombatLockdown() then return ns.Print("can't change keybinds in combat.") end
-  local backup = M.db.backup
+  local store = Store()
+  local backup = store.backup
   if not backup then return ns.Print("nothing to undo.") end
   for _, b in ipairs(Layout()) do
     for _, key in ipairs({ GetBindingKey(b.command) }) do SetBinding(key) end
@@ -90,7 +100,7 @@ local function Undo()
     for _, key in ipairs(keys) do SetBinding(key, command) end
   end
   SaveBindings(GetCurrentBindingSet())
-  M.db.backup = nil
+  store.backup = nil
   ns.Print("original keybinds restored.")
 end
 

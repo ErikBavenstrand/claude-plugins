@@ -1,7 +1,7 @@
 -- Fishing: helpers around the "Fish" macro (which only equips a pole and
 -- fishes; it never names your weapons).
 --   * Remembers the weapons you wear. With the pole equipped, 15 seconds
---     after your last cast (out of combat, not channelling, no loot window)
+--     after your last cast ends (out of combat, not channelling, no loot window)
 --     or as soon as you mount, puts them back. Turn it off with
 --     /ac off Fishing if you'd rather swap back yourself.
 --   * Warns with a raid-warning style message and sound when the lure runs out.
@@ -49,11 +49,12 @@ local function CheckLure()
   lureOn = has
 end
 
+local function StopTicker()
+  if ticker then ticker:Cancel(); ticker = nil end
+end
+
 local function RestoreIfIdle()
-  if not PoleEquipped() then
-    if ticker then ticker:Cancel(); ticker = nil end
-    return
-  end
+  if not M.active or not PoleEquipped() then StopTicker(); return end
   CheckLure()
   if InCombatLockdown() or UnitChannelInfo("player") or (LootFrame and LootFrame:IsShown()) then return end
   local leaving = IsMounted and IsMounted()
@@ -67,9 +68,18 @@ local function RestoreIfIdle()
   if off then Equip(off, 17) end
 end
 
+-- Restarts the idle clock. Runs when a cast starts and again when it ends
+-- (channel stop, loot closed), so the grace period counts from the end.
+local function Touch() lastCast = GetTime() end
+
 local function Watch()
-  lastCast = GetTime()
+  Touch()
   if not ticker then ticker = C_Timer.NewTicker(3, RestoreIfIdle) end
+end
+
+function M:OnDisable()
+  StopTicker()
+  lureOn = nil
 end
 
 M.events = {
@@ -86,4 +96,8 @@ M.events = {
   UNIT_SPELLCAST_CHANNEL_START = function(_, unit)
     if unit == "player" and PoleEquipped() then Watch() end
   end,
+  UNIT_SPELLCAST_CHANNEL_STOP = function(_, unit)
+    if unit == "player" and PoleEquipped() then Touch() end
+  end,
+  LOOT_CLOSED = function() if PoleEquipped() then Touch() end end,
 }

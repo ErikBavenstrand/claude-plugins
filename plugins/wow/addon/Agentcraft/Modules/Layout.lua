@@ -17,7 +17,7 @@
 --   * Homes for spells you haven't learned stay empty until you do.
 -- Entry forms (resolved in Controller.lua):
 --   { "Spell", "Alternative" }        first one you know
---   { macro = "Pull", "Serpent Sting" } the macro if you installed it, else the spell
+--   { macro = "Arcane", "Arcane Shot" } the macro if you installed it, else the spell
 --   { macro = "FD", "Feign Death", "Disengage" } before you know Feign Death, Disengage
 --   { flyout = 253, "Aspect of the Hawk" } a spellbook flyout (radial on a controller)
 --   { utility = 2 }                   best item for ActionBars.utility[2]
@@ -27,6 +27,8 @@
 --                                     the controller catch-all skips them
 --   { petauto = true }                controller only: an autocast toggle for
 --                                     your pet's next autocastable ability
+--                                     (its library "Auto <ability>" macro, once
+--                                     you've installed it; Apply never creates it)
 --   { overflow = true }               controller only: a spell you know that
 --                                     has no other controller home
 local _, ns = ...
@@ -41,8 +43,8 @@ L.keyboard = {
     -- Each row of four keys is one family, so you learn rows, not single keys.
     -- Bar 1: Q E R T rotation, F G C V melee, 1 2 3 4 pull and shots.
     [1] = {
-      { macro = "Arcane", "Arcane Shot" },          -- Q  (also Auto Shot + pet attack)
-      { macro = "Pull", "Serpent Sting" },          -- E  (also pet attack)
+      { macro = "Arcane", "Arcane Shot" },          -- Q  (also starts Auto Shot)
+      { "Serpent Sting" },                            -- E
       { "Aimed Shot" },                             -- R
       { "Summon Hawk", "Sniper Shot" },             -- T  build signature: BM / MM
       { macro = "Melee", "Raptor Strike" },         -- F  (Counterattack / Mongoose Bite / Raptor)
@@ -89,7 +91,7 @@ L.controller = {
       {
         title = "Combat",
         ["RT A"] = { macro = "Arcane", "Arcane Shot" },
-        ["RT X"] = { macro = "Pull", "Serpent Sting" },
+        ["RT X"] = { "Serpent Sting" },
         ["RT B"] = { "Concussive Shot" },
         ["RT Y"] = { "Multi-Shot" },
         ["RT Up"] = { macro = "Opener", "Hunter's Mark" },
@@ -177,17 +179,11 @@ L.controller = {
         ["LT+RT Right"] = { overflow = true },
       },
     },
-    -- Steam Deck back buttons (F13-F16), plain and with LT held.
-    paddles = {
-      ["L4"] = { macro = "PetToggle" },
-      ["L5"] = { macro = "Recall" },
-      ["R4"] = { macro = "FD", "Feign Death", "Disengage" },
-      ["R5"] = { "Concussive Shot" },
-      ["LT+L4"] = { "Intimidation", "Counterattack", "Scatter Shot" },
-      ["LT+L5"] = { macro = "Burst", "Rapid Fire", "Bestial Wrath" },
-      ["LT+R4"] = { "Freezing Trap" },
-      ["LT+R5"] = { racial = true },
-    },
+    -- Steam Deck back buttons (F13-F16), plain and with LT held: keys
+    -- L4 L5 R4 R5 and LT+L4 ... LT+R5. A back button may repeat a page-1
+    -- spell (a shortcut, not a second home). Left unbound for now by the
+    -- owner's choice (2026-11); Apply unbinds any key without a home here.
+    paddles = {},
   },
 }
 

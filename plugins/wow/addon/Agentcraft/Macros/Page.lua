@@ -14,6 +14,7 @@ local GOLD = UI.GOLD
 local STATE = {
   installed = { "Installed", "|cff4cff4c" },
   update = { "Update", "|cffffd100" },
+  taken = { "Name taken", "|cffff9933" },
   blocked = { "Locked", "|cffff5a4a" },
   ready = { "Not installed", "|cffaaaaaa" },
 }
@@ -231,8 +232,7 @@ local function BuildDetail(page, f)
   d.desc:SetWidth(226)
   d.desc:SetJustifyH("LEFT")
 
-  d.modHead, d.mods = Section(d, d.desc, "Modifiers")
-  d.reqHead, d.req = Section(d, d.mods, "Requires")
+  d.reqHead, d.req = Section(d, d.desc, "Requires")
   d.warn = UI.Text(d, "", "GameFontNormalSmall")
   d.warn:SetPoint("TOPLEFT", d.req, "BOTTOMLEFT", 0, -8)
   d.warn:SetWidth(226)
@@ -256,7 +256,8 @@ local function BuildDetail(page, f)
   local function Act(fn)
     return function() if page.selected then ns.UI.RunAction(function() fn(page.selected) end) end end
   end
-  d.install = UI.Button(d, "Install", 74, Act(function(m) L.Install({ m }) end))
+  -- Replace (state "taken") is the only way to overwrite a macro of yours.
+  d.install = UI.Button(d, "Install", 74, Act(function(m) L.Install({ m }, L.State(m) == "taken") end))
   d.install:SetPoint("BOTTOMLEFT", 10, 10)
   d.remove = UI.Button(d, "Remove", 70, Act(function(m) L.Remove({ m }) end))
   d.remove:SetPoint("LEFT", d.install, "RIGHT", 4, 0)
@@ -283,16 +284,14 @@ local function FillDetail(page)
   d.tags:SetText(table.concat(parts, "  ·  "))
   d.desc:SetText(m.desc or "")
 
-  local mods = m.modifiers or {}
-  d.modHead:SetShown(#mods > 0)
-  d.mods:SetText(table.concat(mods, "\n"))
   local lines = {}
   for _, r in ipairs(L.Requirements(m)) do lines[#lines + 1] = (r[2] and CHECK_OK or CHECK_NO) .. r[1] end
   d.reqHead:SetShown(#lines > 0)
   d.req:SetText(table.concat(lines, "\n"))
   d.warn:SetText(m.untested and (ALERT .. "Not yet confirmed on this game version.") or "")
   d.code:SetText(L.Resolve(m) or m.body)
-  d.install:SetText(st == "update" and "Update" or "Install")
+  d.install:SetText(st == "update" and "Update" or st == "taken" and "Replace" or "Install")
+  d.install:SetEnabled(st ~= "blocked")
 end
 
 -- Top bar --------------------------------------------------------------------------

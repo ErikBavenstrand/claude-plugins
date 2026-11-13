@@ -4,16 +4,21 @@
 .DESCRIPTION
   Commands:
     overview                          install, characters, saved-variable files, logs, addons
-    character [-Character] [-Path]    Agentcraft snapshot (written on every /reload and logout)
+    character [-Character] [-Path]    Agentcraft snapshot (saved 10 s after changes, on disk after /reload)
     sv -File <name> [-Character] [-Path]  any addon's SavedVariables file, parsed from Lua
-    binds [-Character]                keybinds (bindings-cache.wtf)
-    errors [-Count]                   recent Lua errors and console messages
+    binds [-Character] [-Grep]        keybinds (bindings-cache.wtf)
+    errors [-Count] [-Character]      Lua errors in the console history, plus snapshot section errors
     log [-File] [-Tail] [-Grep]       a file in Logs (default: newest combat log)
     file -Path <rel> [-Tail] [-Grep]  any text file under the game folder
     install [-Link]                   copy the bundled Agentcraft addon into AddOns
+  Global options: -Flavor _forever_|_retail_|... (default: _forever_ first), -Account <part of name>,
+  -WowPath <folder> (or WOW_PATH), -Max <chars>.
   -Path walks into the data with "/" between keys, e.g. -Path talents or -Path pet/spellbook.
+  A key may be shortened to a unique prefix.
   Output larger than -Max characters is replaced by a list of keys to narrow with -Path.
-  Needs only Windows PowerShell 5.1.
+  Needs only Windows PowerShell 5.1. Windows only: it finds the game through the registry,
+  builds Windows paths and installs with robocopy and a junction.
+  log -Grep and -Tail 0 read at most the last 64 MB and say so.
 #>
 param(
   [Parameter(Position = 0)][string]$Command = 'overview',
@@ -50,6 +55,7 @@ class LuaParser {
   static [regex]$Assign = [regex]'\G([A-Za-z_][A-Za-z0-9_]*)\s*=(?!=)'
   static [char[]]$StrStop = [char[]]@('"', '\')
   static [char[]]$StrStop1 = [char[]]@("'", '\')
+  static [Text.Encoding]$Utf8 = (New-Object System.Text.UTF8Encoding($false, $true))
 
   LuaParser([string]$text) { $this.s = $text; $this.i = 0; $this.n = $text.Length }
 
@@ -125,20 +131,36 @@ class LuaParser {
       elseif ($d -eq 'r') { [void]$sb.Append("`r"); $this.i++ }
       elseif ($d -eq "`r") { [void]$sb.Append("`n"); $this.i++; if ($this.s[$this.i] -eq "`n") { $this.i++ } }
       elseif ($d -ge '0' -and $d -le '9') {
-        $k = 0; $code = 0
-        while ($k -lt 3 -and $this.i -lt $this.n -and $this.s[$this.i] -ge '0' -and $this.s[$this.i] -le '9') {
-          $code = $code * 10 + ([int]$this.s[$this.i] - 48); $this.i++; $k++
+        # \ddd is one byte of a Lua byte string; decode a run of them as UTF-8.
+        $run = New-Object System.Collections.Generic.List[byte]
+        while ($true) {
+          $k = 0; $code = 0
+          while ($k -lt 3 -and $this.i -lt $this.n -and $this.s[$this.i] -ge '0' -and $this.s[$this.i] -le '9') {
+            $code = $code * 10 + ([int]$this.s[$this.i] - 48); $this.i++; $k++
+          }
+          $run.Add([byte]($code -band 255))
+          if ($this.i + 1 -lt $this.n -and $this.s[$this.i] -eq '\' -and $this.s[$this.i + 1] -ge '0' -and $this.s[$this.i + 1] -le '9') { $this.i++ }
+          else { break }
         }
-        [void]$sb.Append([char]$code)
+        [void]$sb.Append([LuaParser]::Bytes($run.ToArray()))
       }
       else { [void]$sb.Append($d); $this.i++ }
     }
     return $null
   }
 
+  static [string] Bytes([byte[]]$b) {
+    try { return [LuaParser]::Utf8.GetString($b) } catch { return [Text.Encoding]::GetEncoding(28591).GetString($b) }
+  }
+
+  # Lua keys are case-sensitive; [ordered]@{} is not.
+  static [System.Collections.Specialized.OrderedDictionary] NewTable() {
+    return New-Object System.Collections.Specialized.OrderedDictionary
+  }
+
   [object] Table() {
     $this.i++
-    $t = [ordered]@{}
+    $t = [LuaParser]::NewTable()
     $next = 1
     while ($true) {
       $this.Skip()
@@ -169,7 +191,7 @@ class LuaParser {
   }
 
   [object] Document() {
-    $doc = [ordered]@{}
+    $doc = [LuaParser]::NewTable()
     while ($true) {
       $this.Skip()
       if ($this.i -ge $this.n) { break }
@@ -211,14 +233,23 @@ function Find-WowRoot {
   throw 'World of Warcraft not found. Pass -WowPath "<folder that holds _retail_, _forever_, ...>" or set WOW_PATH.'
 }
 
-$Root = Find-WowRoot
-$Flavors = @(Get-ChildItem -LiteralPath $Root -Directory | Where-Object { $_.Name -match '^_.+_$' } | Select-Object -ExpandProperty Name)
-if (-not $Flavor) {
-  $Flavor = @('_forever_', '_retail_', '_classic_era_', '_classic_', '_anniversary_') | Where-Object { $Flavors -contains $_ } | Select-Object -First 1
-  if (-not $Flavor) { $Flavor = $Flavors | Select-Object -First 1 }
+# Sets $Root, $Flavors, $Flavor, $Game and $WTF. Runs inside the try below,
+# so a bad -WowPath or -Flavor gives a one-line error.
+function Initialize-Game {
+  $script:Root = Find-WowRoot
+  if (-not (Test-Path -LiteralPath $Root -PathType Container)) { throw "WoW folder not found: $Root. Pass -WowPath `"<folder that holds _retail_, _forever_, ...>`"." }
+  $script:Flavors = @(Get-ChildItem -LiteralPath $Root -Directory | Where-Object { $_.Name -match '^_.+_$' } | Select-Object -ExpandProperty Name)
+  if ($Flavor) {
+    if ($Flavor -notmatch '^_.+_$') { $script:Flavor = "_$($Flavor.Trim('_'))_" }
+    if ($Flavors -notcontains $Flavor) { throw "No '$Flavor' folder under $Root. Have: $($Flavors -join ', ')" }
+  } else {
+    $script:Flavor = @('_forever_', '_retail_', '_classic_era_', '_classic_', '_anniversary_') | Where-Object { $Flavors -contains $_ } | Select-Object -First 1
+    if (-not $Flavor) { $script:Flavor = $Flavors | Select-Object -First 1 }
+    if (-not $Flavor) { throw "No game folders (_retail_, _forever_, ...) under $Root. Pass -WowPath with the folder that holds them." }
+  }
+  $script:Game = Join-Path $Root $Flavor
+  $script:WTF = Join-Path $Game 'WTF'
 }
-$Game = Join-Path $Root $Flavor
-$WTF = Join-Path $Game 'WTF'
 
 function Get-AccountDir {
   $base = Join-Path $WTF 'Account'
@@ -227,6 +258,15 @@ function Get-AccountDir {
   if ($Account) { $dirs = @($dirs | Where-Object { $_.Name -like "*$Account*" }) }
   # Most recently used account first.
   return $dirs | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+}
+
+function Get-AccountDirOrThrow {
+  $acct = Get-AccountDir
+  if (-not $acct) {
+    $which = if ($Account) { " matching '$Account'" } else { '' }
+    throw "No WTF/Account folder$which under $Game. Log in once, or pass -Flavor (have: $($Flavors -join ', ')) or -Account."
+  }
+  return $acct
 }
 
 # Character folders: WTF\Account\<acct>\<realm>\<Name-Realm>
@@ -260,7 +300,9 @@ function Step($node, [string]$seg) {
   if ($node -is [System.Collections.IDictionary]) {
     if ($node.Contains($seg)) { return , $node[$seg] }
     foreach ($k in $node.Keys) { if ([string]$k -ieq $seg) { return , $node[$k] } }
-    foreach ($k in $node.Keys) { if ([string]$k -ilike "$seg*") { return , $node[$k] } }
+    $hits = @($node.Keys | Where-Object { ([string]$_).StartsWith($seg, [StringComparison]::OrdinalIgnoreCase) })
+    if ($hits.Count -eq 1) { return , $node[$hits[0]] }
+    if ($hits.Count -gt 1) { throw "'$seg' matches $($hits -join ', '); be more specific." }
     $keys = @($node.Keys | Select-Object -First 60) -join ', '
     throw "No key '$seg'. Keys here: $keys"
   }
@@ -288,6 +330,9 @@ function Describe($v) {
 
 function Out-Data($obj, [string]$label) {
   $json = ConvertTo-Json -InputObject $obj -Depth 60
+  # PowerShell 5.1 writes ' < > & as ' and so on; put them back so the text can be searched.
+  $json = [regex]::Replace($json, '(?i)(?<!\\)((?:\\\\)*)\\u00(27|3c|3e|26)', {
+    param($m) $m.Groups[1].Value + [char][Convert]::ToInt32($m.Groups[2].Value, 16) })
   if ($json.Length -le $Max) { Out-Text $json; return }
   $lines = @("$label is $($json.Length) characters, over the $Max limit. Narrow it with -Path (or raise -Max). Contents:")
   if ($obj -is [System.Collections.IDictionary]) {
@@ -315,7 +360,10 @@ function Read-TailLines([string]$file, [int]$n) {
   $fs = [IO.File]::Open($file, 'Open', 'Read', 'ReadWrite')
   try {
     $chunk = [Math]::Min($fs.Length, [long]([Math]::Max($n, 1) * 400 + 65536))
-    if ($Grep) { $chunk = [Math]::Min($fs.Length, 64MB) }
+    if ($Grep -or $n -le 0) {
+      $chunk = [Math]::Min($fs.Length, 64MB)
+      if ($chunk -lt $fs.Length) { Out-Text "# read only the last 64 MB of $([Math]::Round($fs.Length / 1MB)) MB" }
+    }
     [void]$fs.Seek(-$chunk, 'End')
     $buf = New-Object byte[] $chunk
     [void]$fs.Read($buf, 0, $chunk)
@@ -346,7 +394,13 @@ function Cmd-Overview {
       foreach ($k in $all.Keys) {
         $s = $all[$k]
         $b = $s['basics']
-        $snaps[$k] = "saved $($s['time'])" + $(if ($b) { ", level $($b['level']) $($b['race']) $($b['class'])" } else { '' })
+        $line = "saved $($s['time'])" + $(if ($b) { ", level $($b['level']) $($b['race']) $($b['class'])" } else { '' })
+        # Times are "yyyy-MM-dd HH:mm:ss", so string order is time order.
+        $skipped = $s['skippedIncomplete']
+        if ($skipped -and [string]$skipped -gt [string]$s['time']) { $line += ", last save skipped $skipped (character not loaded)" }
+        $stale = @($s.Keys | Where-Object { $s[$_] -is [System.Collections.IDictionary] -and $s[$_].Contains('staleSince') })
+        if ($stale.Count) { $line += ", stale sections: $($stale -join ', ')" }
+        $snaps[$k] = $line
       }
     }
   }
@@ -363,12 +417,14 @@ function Cmd-Overview {
   Out-Data $info 'Overview'
 }
 
-function Cmd-Character {
-  $acct = Get-AccountDir
+# Returns the snapshot key and table for -Character, else the newest.
+function Get-Snapshot {
+  $acct = Get-AccountDirOrThrow
   $f = Join-Path $acct.FullName 'SavedVariables\Agentcraft.lua'
   if (-not (Test-Path -LiteralPath $f)) { throw 'No Agentcraft data yet. Install the addon (install command), log in and type /reload.' }
-  $all = (Read-Lua $f)['AgentcraftDB']['modules']['Snapshot']
-  if (-not $all -or $all.Count -eq 0) { throw 'Agentcraft is installed but has no snapshot yet. Type /reload in game.' }
+  $all = $null
+  try { $all = (Read-Lua $f)['AgentcraftDB']['modules']['Snapshot'] } catch {}
+  if (-not $all -or $all.Count -eq 0) { throw 'Agentcraft is installed but has no snapshot yet. Wait 10 seconds in game, then type /reload.' }
   $key = $null
   if ($Character) {
     $key = @($all.Keys | Where-Object { $_ -like "$Character*" }) | Select-Object -First 1
@@ -376,7 +432,11 @@ function Cmd-Character {
   } else {
     $key = @($all.Keys | Sort-Object { $all[$_]['time'] } -Descending) | Select-Object -First 1
   }
-  $snap = $all[$key]
+  return $key, $all[$key]
+}
+
+function Cmd-Character {
+  $key, $snap = Get-Snapshot
   if (-not $Path) {
     $withName = [ordered]@{ character = $key }
     foreach ($k in $snap.Keys) { $withName[$k] = $snap[$k] }
@@ -387,7 +447,7 @@ function Cmd-Character {
 
 function Cmd-SV {
   if (-not $File) { throw 'Pass -File <addon file name>, e.g. -File TradeSkillMaster. The overview command lists them.' }
-  $acct = Get-AccountDir
+  $acct = Get-AccountDirOrThrow
   $name = $File -replace '\.lua$', ''
   $f = $null
   if ($Character) {
@@ -398,17 +458,21 @@ function Cmd-SV {
       if (Test-Path -LiteralPath $cand) { $f = $cand; break }
     }
   }
-  if (-not $f -or -not (Test-Path -LiteralPath $f)) { throw "No SavedVariables file '$name.lua' found. Per-character files need -Character." }
+  if (-not $f -or -not (Test-Path -LiteralPath $f)) {
+    if ($Character) { throw "No SavedVariables file '$name.lua' for $($c.Name). Account-wide files need no -Character." }
+    throw "No SavedVariables file '$name.lua' found. Per-character files need -Character."
+  }
   Out-Data (Walk (Read-Lua $f) $Path) "$name.lua"
 }
 
 function Cmd-Binds {
-  $acct = Get-AccountDir
+  $acct = Get-AccountDirOrThrow
   $f = Join-Path $acct.FullName 'bindings-cache.wtf'
   if ($Character) {
     $cf = Join-Path (Find-CharacterDir $acct $Character).FullName 'bindings-cache.wtf'
     if (Test-Path -LiteralPath $cf) { $f = $cf }
   }
+  if (-not (Test-Path -LiteralPath $f)) { throw "No bindings-cache.wtf in $($acct.Name) yet. The game writes it after the user changes a key binding." }
   $binds = [ordered]@{}
   foreach ($line in [IO.File]::ReadAllLines($f, [Text.Encoding]::UTF8)) {
     if ($line -match '^bind\s+(\S+)\s+(.+)$') { $binds[$Matches[1]] = $Matches[2].Trim() }
@@ -421,14 +485,47 @@ function Cmd-Binds {
   Out-Data $binds 'Keybinds'
 }
 
+# Every "error: ..." string and lastError field in a snapshot, as "path: text".
+function Find-SnapshotErrors($node, [string]$path, [System.Collections.Generic.List[string]]$out) {
+  if ($node -is [string]) {
+    if ($node.StartsWith('error: ')) { $out.Add("${path}: $node") }
+  } elseif ($node -is [System.Collections.IDictionary]) {
+    foreach ($k in $node.Keys) {
+      $v = $node[$k]
+      $p = if ($path) { "$path/$k" } else { [string]$k }
+      if ($k -eq 'lastError' -and $v -is [string]) {
+        $since = if ($node.Contains('staleSince')) { " (old data kept since $($node['staleSince']))" } else { '' }
+        $out.Add("${path}${since}: $v")
+      } else { Find-SnapshotErrors $v $p $out }
+    }
+  } elseif ($node -is [array]) {
+    for ($i = 0; $i -lt $node.Count; $i++) { Find-SnapshotErrors $node[$i] "$path/$($i + 1)" $out }
+  }
+}
+
 function Cmd-Errors {
+  # Console history: errors the client logged.
   $f = Join-Path $WTF 'SavedVariables\Blizzard_Console.lua'
-  if (-not (Test-Path -LiteralPath $f)) { throw 'No console history file yet.' }
-  $hist = (Read-Lua $f)['Blizzard_Console_SavedVars']['messageHistory']
-  $msgs = @($hist | ForEach-Object { if ($_ -is [array]) { [string]$_[0] } else { [string]$_ } })
-  if (-not $Grep) { $script:Grep = '(?i)\.lua:\d+|lua error|attempt to|traceback|ADDON_ACTION|taint' }
-  $script:Tail = $Count
-  Out-Lines $msgs
+  if (Test-Path -LiteralPath $f) {
+    $hist = (Read-Lua $f)['Blizzard_Console_SavedVars']['messageHistory']
+    $msgs = @($hist | ForEach-Object { if ($_ -is [array]) { [string]$_[0] } else { [string]$_ } })
+    $pattern = if ($Grep) { $Grep } else { '(?i)\.lua:\d+|lua error|attempt to|traceback|ADDON_ACTION|taint' }
+    $hits = @($msgs | Where-Object { $_ -match $pattern })
+    Out-Text "# console: $($hits.Count) matching of $($msgs.Count) messages"
+    if ($hits.Count) {
+      $script:Grep = $null
+      $script:Tail = $Count
+      Out-Lines $hits
+    }
+  } else {
+    Out-Text '# console: no history file yet'
+  }
+  # Snapshot: sections run in pcall, so their errors never reach the console.
+  try { $key, $snap = Get-Snapshot } catch { Out-Text "# snapshot: $($_.Exception.Message)"; return }
+  $errs = New-Object System.Collections.Generic.List[string]
+  Find-SnapshotErrors $snap '' $errs
+  Out-Text "# snapshot $key (saved $($snap['time'])): $($errs.Count) errors"
+  foreach ($e in $errs) { Out-Text $e }
 }
 
 function Cmd-Log {
@@ -475,6 +572,7 @@ function Cmd-Install {
 }
 
 try {
+  Initialize-Game
   switch ($Command.ToLower()) {
     'overview' { Cmd-Overview }
     'character' { Cmd-Character }
